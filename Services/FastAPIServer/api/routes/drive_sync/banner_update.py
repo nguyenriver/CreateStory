@@ -29,8 +29,13 @@ async def check_updated() -> JSONResponse:
 
 
 @router.post("/upload/{folder_id}/{story_id}")
-async def upload_banner(folder_id: str, story_id: str, banner_filename: str = "banner1.jpg") -> JSONResponse:
+async def upload_banner(
+    folder_id: str,
+    story_id: str,
+    banner_filename: str = "banner1.jpg",
+    process_watermark: bool = False,
+) -> JSONResponse:
     return await _proxy_post(
         f"/api/drive-sync/banner-update/upload/{folder_id}/{story_id}",
-        params={"banner_filename": banner_filename}
+        params={"banner_filename": banner_filename, "process_watermark": process_watermark}
     )

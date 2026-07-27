@@ -226,6 +226,15 @@ export async function getJob(jobId: string): Promise<JobResponse> {
   );
 }
 
+export async function retryJob(jobId: string): Promise<import('../types').JobCreateResponse> {
+  // Server-side retry: BedReadDriveSync re-enqueues a copy of the failed job with
+  // all of its original fields, for every job kind.
+  return apiFetch<import('../types').JobCreateResponse>(
+    `/api/drive-sync/jobs/${encodeURIComponent(jobId)}/retry`,
+    { method: 'POST', timeout: 30000 }
+  );
+}
+
 export async function deleteJob(jobId: string): Promise<{ deleted: boolean }> {
   return apiFetch<{ deleted: boolean }>(
     `/api/drive-sync/jobs/${encodeURIComponent(jobId)}`,

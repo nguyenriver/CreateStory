@@ -1535,86 +1535,79 @@ class MainBEClientMixin:
 
         return (chapters_added, chapters_skipped, 1)
 
-    def _upload_cover_image(self, story_id: str, image_bytes: bytes, filename: str = "cover.jpg", content_type: str = "image/jpeg") -> Optional[str]:
-        """POST cover image to main BE /api/v1/story/{id}/upload-cover. Returns the cover URL on success."""
+    def _post_story_image(
+        self,
+        kind: str,
+        url: str,
+        image_bytes: bytes,
+        filename: str,
+        content_type: str,
+        response_field: str,
+    ) -> tuple[Optional[str], Optional[str]]:
+        """POST an image to main BE and return (url, error_detail).
+
+        Exactly one of the pair is set. Transient failures (429/5xx/network) are
+        retried once so a single hiccup doesn't fail a whole update job.
+        """
         if self._config is None:
-            return None
+            return None, "Drive sync config not set"
+        headers = self._main_be_headers()
+        last_error: Optional[str] = None
+        for attempt in range(2):
+            if attempt:
+                time.sleep(2)
+            try:
+                with self._main_be_client(timeout=120.0) as client:
+                    resp = client.post(
+                        url,
+                        files={"image": (filename, image_bytes, content_type)},
+                        headers=headers,
+                    )
+            except Exception as exc:
+                last_error = f"request failed: {_redact_sensitive(str(exc))}"
+                self._append_log("error", f"{kind.title()} upload exception (attempt {attempt + 1}): {last_error}")
+                continue
+
+            if resp.status_code in (200, 201):
+                try:
+                    data = resp.json()
+                except ValueError:
+                    return None, f"HTTP {resp.status_code} but response was not JSON: {resp.text[:200]}"
+                if not isinstance(data, dict):
+                    return None, f"HTTP {resp.status_code} but unexpected response shape: {resp.text[:200]}"
+                payload = data.get("data")
+                value = payload.get(response_field) if isinstance(payload, dict) else None
+                if value:
+                    self._append_log("info", f"{kind.title()} image uploaded: {value}")
+                    return value, None
+                return None, f"HTTP {resp.status_code} but no {response_field} in response: {resp.text[:300]}"
+
+            last_error = f"HTTP {resp.status_code}: {resp.text[:300]}"
+            self._append_log("error", f"{kind.title()} upload failed (attempt {attempt + 1}): {last_error}")
+            if resp.status_code not in (429, 500, 502, 503, 504):
+                return None, last_error
+        return None, last_error
+
+    def _upload_cover_image(self, story_id: str, image_bytes: bytes, filename: str = "cover.jpg", content_type: str = "image/jpeg") -> tuple[Optional[str], Optional[str]]:
+        """POST cover image to main BE /api/v1/story/{id}/upload-cover. Returns (cover_url, error_detail)."""
+        if self._config is None:
+            return None, "Drive sync config not set"
         url = f"{self._config.main_be_api_base_url}/api/v1/story/{story_id}/upload-cover"
-        headers = self._main_be_headers()
-        try:
-            with self._main_be_client(timeout=60.0) as client:
-                resp = client.post(
-                    url,
-                    files={"image": (filename, image_bytes, content_type)},
-                    headers=headers,
-                )
-                if resp.status_code in (200, 201):
-                    data = resp.json()
-                    cover_url = data.get("data", {}).get("coverImageUrl")
-                    if cover_url:
-                        self._append_log("info", f"Cover image uploaded: {cover_url}")
-                        return cover_url
-                    else:
-                        self._append_log("warning", "Cover upload returned success but no coverImageUrl in response")
-                else:
-                    self._append_log("error", f"Cover upload failed {resp.status_code}: {resp.text[:200]}")
-        except Exception as exc:
-            self._append_log("error", f"Cover upload exception: {exc}")
-        return None
+        return self._post_story_image("cover", url, image_bytes, filename, content_type, "coverImageUrl")
 
-    def _upload_banner_image(self, story_id: str, image_bytes: bytes, filename: str = "banner1.jpg", content_type: str = "image/jpeg") -> Optional[str]:
-        """POST banner image to main BE /api/v1/story/{id}/upload-banner. Returns the banner URL on success."""
+    def _upload_banner_image(self, story_id: str, image_bytes: bytes, filename: str = "banner1.jpg", content_type: str = "image/jpeg") -> tuple[Optional[str], Optional[str]]:
+        """POST banner image to main BE /api/v1/story/{id}/upload-banner. Returns (banner_url, error_detail)."""
         if self._config is None:
-            return None
+            return None, "Drive sync config not set"
         url = f"{self._config.main_be_api_base_url}/api/v1/story/{story_id}/upload-banner"
-        headers = self._main_be_headers()
-        try:
-            with self._main_be_client(timeout=60.0) as client:
-                resp = client.post(
-                    url,
-                    files={"image": (filename, image_bytes, content_type)},
-                    headers=headers,
-                )
-                if resp.status_code in (200, 201):
-                    data = resp.json()
-                    banner_url = data.get("data", {}).get("bannerImageUrl")
-                    if banner_url:
-                        self._append_log("info", f"Banner image uploaded: {banner_url}")
-                        return banner_url
-                    else:
-                        self._append_log("warning", "Banner upload returned success but no bannerImageUrl in response")
-                else:
-                    self._append_log("error", f"Banner upload failed {resp.status_code}: {resp.text[:200]}")
-        except Exception as exc:
-            self._append_log("error", f"Banner upload exception: {exc}")
-        return None
+        return self._post_story_image("banner", url, image_bytes, filename, content_type, "bannerImageUrl")
 
-    def _upload_intro_image(self, story_id: str, image_bytes: bytes, filename: str = "intro1.jpg", content_type: str = "image/jpeg") -> Optional[str]:
-        """POST intro image to main BE /api/v1/admin-recommended-stories/{id}/intro-image. Returns the intro URL on success."""
+    def _upload_intro_image(self, story_id: str, image_bytes: bytes, filename: str = "intro1.jpg", content_type: str = "image/jpeg") -> tuple[Optional[str], Optional[str]]:
+        """POST intro image to main BE /api/v1/admin-recommended-stories/{id}/intro-image. Returns (intro_url, error_detail)."""
         if self._config is None:
-            return None
+            return None, "Drive sync config not set"
         url = f"{self._config.main_be_api_base_url}/api/v1/admin-recommended-stories/{story_id}/intro-image"
-        headers = self._main_be_headers()
-        try:
-            with self._main_be_client(timeout=60.0) as client:
-                resp = client.post(
-                    url,
-                    files={"image": (filename, image_bytes, content_type)},
-                    headers=headers,
-                )
-                if resp.status_code in (200, 201):
-                    data = resp.json()
-                    intro_url = data.get("data", {}).get("introImageUrl")
-                    if intro_url:
-                        self._append_log("info", f"Intro image uploaded: {intro_url}")
-                        return intro_url
-                    else:
-                        self._append_log("warning", "Intro upload returned success but no introImageUrl in response")
-                else:
-                    self._append_log("error", f"Intro upload failed {resp.status_code}: {resp.text[:200]}")
-        except Exception as exc:
-            self._append_log("error", f"Intro upload exception: {exc}")
-        return None
+        return self._post_story_image("intro", url, image_bytes, filename, content_type, "introImageUrl")
 
     def get_stories_needing_update(self, start_date: Optional[str] = None, end_date: Optional[str] = None) -> dict:
         """

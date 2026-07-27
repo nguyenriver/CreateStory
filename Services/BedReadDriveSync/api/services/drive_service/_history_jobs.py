@@ -237,11 +237,11 @@ class HistoryJobsMixin:
             try:
                 cover_bytes = self._download_cover_image_bytes(drive_service, cover_file["id"])
                 self._append_log("info", f"Downloaded cover image ({len(cover_bytes)} bytes)")
-                cover_url = self._upload_cover_image(story_id, cover_bytes, cover_file["name"])
+                cover_url, cover_error = self._upload_cover_image(story_id, cover_bytes, cover_file["name"])
                 if cover_url:
                     self._append_log("info", f"Cover image uploaded: {cover_url}")
                 else:
-                    self._append_log("warning", "Cover image upload failed — continuing without cover")
+                    self._append_log("warning", f"Cover image upload failed ({cover_error}) — continuing without cover")
             except Exception as exc:
                 self._append_log("warning", f"Cover image processing failed: {exc}")
         else:
@@ -751,6 +751,29 @@ class HistoryJobsMixin:
             self.notify_job_dispatcher()
         return selected_job, created
 
+    def retry_job(self, job_id: str) -> tuple["SyncJob", bool]:
+        """Re-enqueue a failed or cancelled job as a fresh copy of itself.
+
+        Returns (job, created) from create_job_once — created=False means an
+        equivalent job is already queued or running.
+        """
+        from api.models.drive_sync import JobStatus
+
+        job = self.get_job(job_id)
+        if job is None:
+            raise KeyError(f"Job '{job_id}' not found.")
+        if job.status not in (JobStatus.ERROR, JobStatus.CANCELLED):
+            raise ValueError("Only failed or cancelled jobs can be retried.")
+        return self.create_job_once(
+            kind=job.kind,
+            folder_id=job.folder_id,
+            folder_name=job.folder_name,
+            display_name=job.display_name,
+            main_be_api_base_url=job.main_be_api_base_url,
+            chapters_count=job.chapters_count,
+            payload=dict(job.payload or {}),
+        )
+
     def create_job_batch(self, client_batch_id: str, requests: list) -> tuple[list["SyncJob"], bool]:
         """Atomically enqueue up to 500 supported jobs with request idempotency."""
         from api.models.drive_sync import JobKind, JobStatus, SyncJob
@@ -1188,11 +1211,11 @@ class HistoryJobsMixin:
                         job_id,
                     )
                     cover_bytes = watermark_result.image_bytes
-                cover_url = self._upload_cover_image(story_id, cover_bytes, cover_file["name"])
+                cover_url, cover_error = self._upload_cover_image(story_id, cover_bytes, cover_file["name"])
                 if cover_url:
                     self.append_job_log(job_id, "info", f"Cover image uploaded: {cover_url}")
                 else:
-                    self.append_job_log(job_id, "warning", "Cover image upload failed")
+                    self.append_job_log(job_id, "warning", f"Cover image upload failed: {cover_error}")
             except Exception as exc:
                 self.append_job_log(job_id, "warning", f"Cover image processing failed: {exc}")
         else:

@@ -89,7 +89,9 @@ def _make_service(files_for_query, banner_url="https://main.example.com/banner.j
             "content_type": content_type,
             "size": len(image_bytes),
         })
-        return banner_url
+        if banner_url:
+            return banner_url, None
+        return None, "stubbed upload failure"
 
     svc._upload_banner_image = fake_upload_banner_image
 

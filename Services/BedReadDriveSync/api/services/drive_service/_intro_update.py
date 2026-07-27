@@ -191,7 +191,7 @@ class IntroUpdateMixin:
             self.append_job_log(job_id, "info", "Intro watermark cleanup disabled; uploading original bytes.")
 
         try:
-            intro_url = self._upload_intro_image(
+            intro_url, upload_error = self._upload_intro_image(
                 story_id,
                 intro_bytes,
                 intro_file["name"],
@@ -202,7 +202,7 @@ class IntroUpdateMixin:
 
         if intro_url:
             return True, intro_url
-        return False, "Intro upload returned no URL"
+        return False, f"Intro upload failed: {upload_error or 'no URL returned'}"
 
     def upload_intro_for_new_story(
         self,
@@ -256,7 +256,7 @@ class IntroUpdateMixin:
             intro_bytes = watermark_result.image_bytes
 
         try:
-            intro_url = self._upload_intro_image(
+            intro_url, upload_error = self._upload_intro_image(
                 story_id,
                 intro_bytes,
                 filename,
@@ -272,7 +272,7 @@ class IntroUpdateMixin:
 
         if intro_url:
             return {"uploaded": True, "intro_url": intro_url, "error": None, "filename": filename}
-        return {"uploaded": False, "intro_url": None, "error": "Intro upload returned no URL", "filename": filename}
+        return {"uploaded": False, "intro_url": None, "error": f"Intro upload failed: {upload_error or 'no URL returned'}", "filename": filename}
 
     def _record_intro_update(
         self,

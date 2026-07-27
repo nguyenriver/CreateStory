@@ -57,6 +57,11 @@ async def list_jobs(
     return await _proxy_get("/api/drive-sync/jobs", params=params)
 
 
+@router.post("/jobs/{job_id}/retry")
+async def retry_job(job_id: str) -> JSONResponse:
+    return await _proxy_post(f"/api/drive-sync/jobs/{job_id}/retry")
+
+
 @router.get("/jobs/{job_id}")
 async def get_job(job_id: str) -> JSONResponse:
     return await _proxy_get(f"/api/drive-sync/jobs/{job_id}")

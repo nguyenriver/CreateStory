@@ -292,12 +292,16 @@ class ServerWatermarkFixMixin:
         content_type: str,
     ) -> Optional[str]:
         if asset_type == "cover":
-            return self._upload_cover_image(story_id, image_bytes, filename, content_type)
-        if asset_type == "banner":
-            return self._upload_banner_image(story_id, image_bytes, filename, content_type)
-        if asset_type == "intro":
-            return self._upload_intro_image(story_id, image_bytes, filename, content_type)
-        raise ValueError(f"Unsupported story asset type: {asset_type}")
+            uploaded_url, upload_error = self._upload_cover_image(story_id, image_bytes, filename, content_type)
+        elif asset_type == "banner":
+            uploaded_url, upload_error = self._upload_banner_image(story_id, image_bytes, filename, content_type)
+        elif asset_type == "intro":
+            uploaded_url, upload_error = self._upload_intro_image(story_id, image_bytes, filename, content_type)
+        else:
+            raise ValueError(f"Unsupported story asset type: {asset_type}")
+        if not uploaded_url:
+            raise RuntimeError(f"Replacement upload failed: {upload_error or 'no URL returned'}")
+        return uploaded_url
 
     def _persist_watermark_fix_payload(self, job_id: str, payload: dict[str, Any]) -> None:
         self.update_job(job_id, payload=payload)

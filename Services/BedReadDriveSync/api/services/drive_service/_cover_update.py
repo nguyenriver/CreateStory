@@ -186,7 +186,7 @@ class CoverUpdateMixin:
             self.append_job_log(job_id, "info", "Cover watermark cleanup disabled; uploading original bytes.")
 
         try:
-            cover_url = self._upload_cover_image(
+            cover_url, upload_error = self._upload_cover_image(
                 story_id,
                 cover_bytes,
                 cover_file["name"],
@@ -197,7 +197,7 @@ class CoverUpdateMixin:
 
         if cover_url:
             return True, cover_url
-        return False, "Cover upload returned no URL"
+        return False, f"Cover upload failed: {upload_error or 'no URL returned'}"
 
     def _record_cover_update(
         self,

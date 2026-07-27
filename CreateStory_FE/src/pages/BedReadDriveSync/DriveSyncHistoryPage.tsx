@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { createJob, deleteJob, deleteJobs, listJobs, updateChapterTitle, updateContentChapter, type JobLogEntry, type SyncJob } from '../../api/BedReadDriveSync';
+import { deleteJob, deleteJobs, listJobs, retryJob, updateChapterTitle, updateContentChapter, type JobLogEntry, type SyncJob } from '../../api/BedReadDriveSync';
 import { DatePicker } from '../../components/Shared/DatePicker';
 import { Icon, appIcons } from '../../components/Shared/Icon';
 import { LoadingAppIcon } from '../../components/BedReadDriveSync/DriveSync/SyncTabShared';
@@ -282,7 +282,7 @@ function JobCard({
               </p>
             )}
 
-            {(job.status === 'error' || Boolean(job.error)) && !deleteMode && (
+            {(job.status === 'error' || job.status === 'cancelled' || Boolean(job.error)) && !deleteMode && (
               <div className="mt-3 flex items-center gap-2">
                 <button
                   type="button"
@@ -412,15 +412,9 @@ export function DriveSyncHistoryPage({ themeMode: _themeMode }: DriveSyncHistory
           showToast(res.message || 'Retry failed.', 'error', 3000, 'top-center');
         }
       } else {
-        const res = await createJob({
-          kind: job.kind,
-          folder_id: job.folder_id,
-          folder_name: job.folder_name,
-          display_name: getDisplayName(job),
-          main_be_api_base_url: job.main_be_api_base_url ?? undefined,
-          chapters_count: job.chapters_count ?? undefined,
-          payload: job.payload ?? undefined,
-        });
+        // Server-side retry re-enqueues a copy of the failed job (any kind) with
+        // all of its original fields — nothing is reconstructed client-side.
+        const res = await retryJob(job.id);
         showToast(res.message || 'Job re-queued for retry.', 'success', 3000, 'top-center');
       }
       await loadJobs();

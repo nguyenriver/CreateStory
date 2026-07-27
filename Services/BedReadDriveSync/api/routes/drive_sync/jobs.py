@@ -145,6 +145,33 @@ async def list_jobs(
     return JobListResponse(jobs=jobs, total=total, **metrics)
 
 
+# POST /api/drive-sync/jobs/{job_id}/retry
+@router.post("/jobs/{job_id}/retry", response_model=JobCreateResponse, tags=["Drive Sync"])
+async def retry_job(job_id: str) -> JobCreateResponse:
+    """Re-enqueue a failed or cancelled job as a fresh copy (any job kind)."""
+    service = get_drive_sync_service()
+    if service.get_config() is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Drive sync not configured. POST /api/drive-sync/config first.",
+        )
+    try:
+        job, created = service.retry_job(job_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return JobCreateResponse(
+        id=job.id,
+        status=job.status,
+        message=(
+            f"Retry enqueued for '{job.display_name}'."
+            if created
+            else f"A job for '{job.display_name}' is already queued or running."
+        ),
+    )
+
+
 # GET /api/drive-sync/jobs/{job_id}
 @router.get("/jobs/{job_id}", response_model=JobResponse, tags=["Drive Sync"])
 async def get_job(job_id: str) -> JobResponse:

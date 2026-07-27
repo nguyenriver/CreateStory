@@ -74,7 +74,7 @@ def test_new_story_images_are_cleaned_between_drive_download_and_upload(
 
     def upload(_story_id: str, image_bytes: bytes, _filename: str, _content_type: str):
         uploaded.append(image_bytes)
-        return f"https://main.example.com/{filename}"
+        return f"https://main.example.com/{filename}", None
 
     setattr(service, uploader_name, upload)
 
@@ -121,7 +121,7 @@ def test_new_story_secondary_images_skip_cleanup_when_toggle_is_off(
 
     def upload(_story_id: str, image_bytes: bytes, _filename: str, _content_type: str):
         uploaded.append(image_bytes)
-        return f"https://main.example.com/{filename}"
+        return f"https://main.example.com/{filename}", None
 
     setattr(service, uploader_name, upload)
 
@@ -172,7 +172,7 @@ def test_cover_is_cleaned_between_drive_download_and_upload() -> None:
 
     def upload(_story_id: str, image_bytes: bytes, _filename: str):
         uploaded.append(image_bytes)
-        return "https://main.example.com/cover.jpg"
+        return "https://main.example.com/cover.jpg", None
 
     service._upload_cover_image = upload
 
@@ -256,7 +256,7 @@ def test_dedicated_image_updates_clean_drive_bytes_before_upload(
 
     def upload(story_id: str, image_bytes: bytes, image_filename: str, content_type: str):
         uploaded.append((story_id, image_bytes, image_filename, content_type))
-        return f"https://main.example.com/{filename}"
+        return f"https://main.example.com/{filename}", None
 
     setattr(service, uploader_name, upload)
 
@@ -293,7 +293,7 @@ def test_dedicated_image_update_skips_cleanup_when_toggle_is_off(monkeypatch) ->
     uploaded: list[bytes] = []
     service._upload_cover_image = (
         lambda _story_id, image_bytes, _filename, _content_type:
-        uploaded.append(image_bytes) or "https://main.example.com/cover1.jpg"
+        uploaded.append(image_bytes) or ("https://main.example.com/cover1.jpg", None)
     )
 
     success, _result = service._upload_story_cover_from_folder(

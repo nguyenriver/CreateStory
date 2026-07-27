@@ -1213,7 +1213,7 @@ async def update_content_chapter(body: ContentUpdateChapterRequest) -> ContentUp
     if config is None:
         raise HTTPException(status_code=400, detail="Drive sync not configured.")
 
-    display_title = body.story_id
+    display_title = ""
     folder_name = body.folder_id
     try:
         folders, _ = service.list_drive_folders(limit=10000, offset=0)
@@ -1224,6 +1224,29 @@ async def update_content_chapter(body: ContentUpdateChapterRequest) -> ContentUp
                 break
     except Exception:
         pass
+    if not display_title:
+        # Chapters-extended folders are not in the top-level Drive folder list, so the
+        # lookup above usually misses — resolve the human story title from the main BE
+        # instead of titling the job with the raw story UUID.
+        try:
+            story = await asyncio.to_thread(service.get_server_story_detail, body.story_id)
+            display_title = str(story.get("title") or "")
+        except Exception:
+            pass
+    if not display_title:
+        display_title = body.story_id
+    if folder_name == body.folder_id:
+        # Same miss as above: resolve the chapters-extended folder's name straight
+        # from Drive so the job doesn't display a bare folder ID.
+        def _get_folder() -> dict:
+            drive = service._build_drive_service()
+            return drive.files().get(fileId=body.folder_id, fields="id, name").execute()
+
+        try:
+            folder_info = await asyncio.to_thread(_get_folder)
+            folder_name = str(folder_info.get("name") or body.folder_id)
+        except Exception:
+            pass
 
     try:
         job, created = service.create_job_once(
@@ -1247,60 +1270,6 @@ async def update_content_chapter(body: ContentUpdateChapterRequest) -> ContentUp
         job_id=job.id,
         status=job.status,
     )
-
-    try:
-        updated = await asyncio.to_thread(
-            service.update_server_chapter_from_drive,
-            body.story_id,
-            body.chapter_number,
-            body.folder_id,
-        )
-        chapter = ContentUpdateChapterStatus(
-            chapterNumber=body.chapter_number,
-            title=updated.get("title") or "",
-            status="updated",
-            fileName=updated.get("fileName"),
-            serverLength=updated.get("plainLength") or 0,
-            driveLength=updated.get("plainLength") or 0,
-            message="Updated from Drive.",
-        )
-        story_title = str(updated.get("storyTitle") or body.story_id)
-        folder_name = str(updated.get("folderName") or body.folder_id)
-        timestamp = datetime.now(timezone.utc).isoformat()
-        await asyncio.to_thread(
-            service.record_completed_job,
-            kind=JobKind.CHAPTER_CONTENT_UPDATE,
-            folder_id=body.folder_id,
-            folder_name=folder_name,
-            display_name=f"{story_title} - Chapter {body.chapter_number}",
-            result_message=f"Chapter {body.chapter_number} content updated from Drive.",
-            logs=[
-                {
-                    "timestamp": timestamp,
-                    "level": "info",
-                    "message": f"Story: {story_title}",
-                },
-                {
-                    "timestamp": timestamp,
-                    "level": "info",
-                    "message": f"Drive folder: {folder_name}",
-                },
-                {
-                    "timestamp": timestamp,
-                    "level": "info",
-                    "message": f"Chapter {body.chapter_number}: {chapter.title or updated.get('fileName') or 'Untitled'} updated from Drive.",
-                },
-            ],
-            chapters_added=1,
-            chapters_skipped=0,
-            main_be_api_base_url=config.main_be_api_base_url,
-        )
-        return ContentUpdateChapterResponse(success=True, message=f"Chapter {body.chapter_number} updated.", chapter=chapter)
-    except RuntimeError as exc:
-        return ContentUpdateChapterResponse(success=False, message=str(exc))
-    except Exception as exc:
-        logger.exception("Chapter update failed")
-        raise HTTPException(status_code=500, detail="Chapter update failed.")
 
 
 # ---------------------------------------------------------------------------

@@ -211,3 +211,61 @@ def test_large_story_downloads_chapters_in_windows_of_eight():
 
     assert len(parsed) == 21
     assert service.window_sizes == [8, 8, 5]
+
+
+class _RetryHarness(HistoryJobsMixin):
+    """Just enough service surface for retry_job -> create_job_once."""
+
+    def __init__(self, job: SyncJob) -> None:
+        self._existing = job
+        self.jobs_list = [job]
+        self._repo = SimpleNamespace(_enforce_jobs_limit=lambda _limit: None)
+        self.notified = False
+
+    def get_job(self, job_id: str) -> SyncJob | None:
+        return self._existing if job_id == self._existing.id else None
+
+    def _with_jobs_lock(self, mutate):
+        self.jobs_list = mutate(self.jobs_list)
+        return self.jobs_list
+
+    def notify_job_dispatcher(self) -> None:
+        self.notified = True
+
+
+def test_retry_job_reenqueues_a_fresh_copy_of_a_failed_job():
+    failed = SyncJob(
+        id="job-err",
+        kind="banner_update",
+        status=JobStatus.ERROR,
+        folder_id="folder-1",
+        folder_name="DONE_story",
+        display_name="Story - Banner update",
+        created_at="2026-07-27T00:00:00+00:00",
+        payload={"story_id": "s-1"},
+    )
+    service = _RetryHarness(failed)
+
+    job, created = service.retry_job("job-err")
+
+    assert created is True
+    assert job.id != failed.id
+    assert job.status == JobStatus.QUEUED
+    assert (job.kind, job.folder_id, job.display_name) == ("banner_update", "folder-1", "Story - Banner update")
+    assert job.payload == {"story_id": "s-1"}
+    assert service.notified is True
+
+
+def test_retry_job_rejects_active_and_successful_jobs():
+    import pytest
+
+    for status in (JobStatus.QUEUED, JobStatus.RUNNING, JobStatus.SUCCESS):
+        job = _job(1)
+        job.status = status
+        service = _RetryHarness(job)
+        with pytest.raises(ValueError):
+            service.retry_job(job.id)
+
+    service = _RetryHarness(_job(2))
+    with pytest.raises(KeyError):
+        service.retry_job("missing-job-id")

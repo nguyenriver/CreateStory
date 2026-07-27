@@ -191,7 +191,7 @@ class BannerUpdateMixin:
             self.append_job_log(job_id, "info", "Banner watermark cleanup disabled; uploading original bytes.")
 
         try:
-            banner_url = self._upload_banner_image(
+            banner_url, upload_error = self._upload_banner_image(
                 story_id,
                 banner_bytes,
                 banner_file["name"],
@@ -202,7 +202,7 @@ class BannerUpdateMixin:
 
         if banner_url:
             return True, banner_url
-        return False, "Banner upload returned no URL"
+        return False, f"Banner upload failed: {upload_error or 'no URL returned'}"
 
     def upload_banner_for_new_story(
         self,
@@ -256,7 +256,7 @@ class BannerUpdateMixin:
             banner_bytes = watermark_result.image_bytes
 
         try:
-            banner_url = self._upload_banner_image(
+            banner_url, upload_error = self._upload_banner_image(
                 story_id,
                 banner_bytes,
                 filename,
@@ -272,7 +272,7 @@ class BannerUpdateMixin:
 
         if banner_url:
             return {"uploaded": True, "banner_url": banner_url, "error": None, "filename": filename}
-        return {"uploaded": False, "banner_url": None, "error": "Banner upload returned no URL", "filename": filename}
+        return {"uploaded": False, "banner_url": None, "error": f"Banner upload failed: {upload_error or 'no URL returned'}", "filename": filename}
 
     def _record_banner_update(
         self,

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } f
 import { Link } from 'react-router-dom';
 import {
   exportInkittBatchCatalog,
+  getInkittBatchArchiveInfo,
   getInkittBatchDownloadUrl,
   getInkittBatchRows,
   getInkittBatchStatus,
@@ -12,6 +13,7 @@ import {
   reorderInkittBatchGenres,
   removeInkittBatch,
   startInkittBatch,
+  startInkittBatchArchive,
   type InkittBatchRow,
   type InkittBatchCrawlRun,
   type InkittBatchSummary,
@@ -19,6 +21,7 @@ import {
 import { apiFetch, downloadWithAuth } from '../../api/client';
 import { Icon, appIcons } from '../../components/Shared/Icon';
 import type { ThemeMode } from '../../types/theme';
+import { BatchZipControls, RunZipControls, useBatchArchive } from './batchArchiveControls';
 import { CRAWL_MODE_PRESETS, resolveCrawlMode, type CrawlMode } from './inkittCrawlModes';
 import { getInkittLogTone, inkittLogToneClass, splitInkittLogLine } from './inkittLogUtils';
 
@@ -194,6 +197,14 @@ export function InkittBatchPage({ themeMode }: InkittBatchPageProps) {
   const activeRun = crawlRuns.find((run) => run.status === 'crawling' && !run.finished_at) ?? null;
   const previousRuns = crawlRuns.filter((run) => run !== activeRun);
   const visiblePreviousRuns = showAllRuns ? previousRuns : previousRuns.slice(0, 5);
+  const { archiveInfo, zipTarget, handleCreateZip } = useBatchArchive({
+    batchId,
+    downloadReady: Boolean(summary?.download_ready),
+    previousRunIds: previousRuns.map((run) => run.run_id),
+    getInfo: getInkittBatchArchiveInfo,
+    start: startInkittBatchArchive,
+    onError: setError,
+  });
   const progressPercent = summary && estimateTotalChapters > 0
     ? Math.round((summary.crawled_chapters / estimateTotalChapters) * 1000) / 10
     : summary && summary.total_stories > 0
@@ -878,7 +889,7 @@ export function InkittBatchPage({ themeMode }: InkittBatchPageProps) {
                   </button>
                   {openMenu === 'more' && (
                     <div className="absolute right-0 z-30 mt-1.5 w-64 rounded-md border p-1 shadow-lg" style={{ background: panelBg, borderColor: panelBorder }}>
-                      <button type="button" onClick={() => { setOpenMenu(null); void handleDownload(); }} disabled={!summary?.download_ready || Boolean(downloadTarget)} className="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm font-medium transition-colors hover:bg-[var(--cs-surface-muted)] disabled:opacity-40" style={{ color: text }}>
+                      <button type="button" onClick={() => { setOpenMenu(null); void handleDownload(); }} disabled={!summary?.download_ready || !archiveInfo['all']?.size_bytes || Boolean(downloadTarget)} title={archiveInfo['all']?.size_bytes ? undefined : 'Create the ZIP first (Crawl runs section)'} className="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm font-medium transition-colors hover:bg-[var(--cs-surface-muted)] disabled:opacity-40" style={{ color: text }}>
                         <Icon icon={appIcons.download} className="h-4 w-4" /> Download exported ZIP
                       </button>
                       <button type="button" onClick={() => { setOpenMenu(null); void handleExportCatalog(); }} disabled={isCatalogExporting || !summary} className="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm font-medium transition-colors hover:bg-[var(--cs-surface-muted)] disabled:opacity-40" style={{ color: text }}>
@@ -927,12 +938,18 @@ export function InkittBatchPage({ themeMode }: InkittBatchPageProps) {
                     <h2 className="text-base font-semibold" style={{ color: text }}>Crawl runs</h2>
                     <span className="rounded-full border px-2 py-0.5 text-xs tabular-nums" style={{ borderColor: panelBorder, background: muted, color: soft }}>{crawlRuns.length}</span>
                   </div>
-                  <p className="text-sm" style={{ color: soft }}>Download the ZIP for any run. Live progress is in the cards above.</p>
+                  <p className="text-sm" style={{ color: soft }}>Zip the export on the server first, then download the finished file ? it stays available until you re-zip.</p>
                 </div>
-                <button type="button" onClick={handleDownload} disabled={!summary.download_ready || Boolean(downloadTarget)} className="inline-flex items-center justify-center gap-2 rounded-md border px-3 py-2 text-sm font-medium disabled:opacity-60" style={{ borderColor: panelBorder, background: muted, color: text }}>
-                  <Icon icon={downloadTarget === 'all' ? appIcons.spinner : appIcons.download} className={`h-4 w-4 ${downloadTarget === 'all' ? 'animate-spin' : ''}`} />
-                  {downloadTarget === 'all' ? 'Preparing ZIP' : 'Download all'}
-                </button>
+                <BatchZipControls
+                  theme={{ isDark, panelBorder, muted, text, soft, faint }}
+                  archive={archiveInfo['all']}
+                  isZipStarting={zipTarget === 'all'}
+                  downloadReady={Boolean(summary.download_ready)}
+                  isDownloading={downloadTarget === 'all'}
+                  downloadBusy={Boolean(downloadTarget)}
+                  onZip={() => { void handleCreateZip(); }}
+                  onDownload={() => { void handleDownload(); }}
+                />
               </div>
 
               {previousRuns.length > 0 ? (
@@ -959,10 +976,16 @@ export function InkittBatchPage({ themeMode }: InkittBatchPageProps) {
                         <p>{(run.crawled_chapters ?? 0).toLocaleString()} / {(run.total_chapters ?? 0).toLocaleString()} chapters</p>
                         <p className="mt-1">Finished {run.finished_at || '-'}</p>
                       </div>
-                      <button type="button" onClick={() => { void handleDownloadRun(run.run_id); }} disabled={run.completed_count === 0 || Boolean(downloadTarget)} className="inline-flex items-center justify-center gap-2 rounded-md border px-3 py-2 text-xs font-semibold disabled:opacity-60" style={{ borderColor: panelBorder, background: muted, color: text }}>
-                        <Icon icon={downloadTarget === `run:${run.run_id}` ? appIcons.spinner : appIcons.download} className={`h-3.5 w-3.5 ${downloadTarget === `run:${run.run_id}` ? 'animate-spin' : ''}`} />
-                        {downloadTarget === `run:${run.run_id}` ? 'Preparing' : 'Download'}
-                      </button>
+                      <RunZipControls
+                        theme={{ isDark, panelBorder, muted, text, soft, faint }}
+                        archive={archiveInfo[`run:${run.run_id}`]}
+                        isZipStarting={zipTarget === `run:${run.run_id}`}
+                        canZip={run.completed_count > 0}
+                        isDownloading={downloadTarget === `run:${run.run_id}`}
+                        downloadBusy={Boolean(downloadTarget)}
+                        onZip={() => { void handleCreateZip(run.run_id); }}
+                        onDownload={() => { void handleDownloadRun(run.run_id); }}
+                      />
                     </div>
                   ))}
                   {previousRuns.length > 5 && (

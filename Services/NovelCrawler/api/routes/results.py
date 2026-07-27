@@ -16,7 +16,13 @@ from pydantic import BaseModel
 from starlette.background import BackgroundTask
 
 from api.models.crawl_request import CrawlResult, OutputFile
-from api.services.archive_cache import get_or_build_cached_zip
+from api.services.archive_cache import (
+    batch_archive_manifest_counts,
+    cached_archive_path,
+    get_archive_info,
+    get_or_build_cached_zip,
+    start_archive_build,
+)
 from api.services.crawler_service import chapter_record_from_output_file, get_crawl_service
 from api.services.file_service import CrawlPathError, get_file_service
 from api.service_auth import require_owner
@@ -253,16 +259,9 @@ async def download_goodnovel_batch(batch_id: str, request: Request) -> FileRespo
     return _zip_file_response(files, f"goodnovel_batch_{batch_id}.zip")
 
 
-@router.get("/inkitt-batch/{batch_id}/download", response_model=None)
-def download_inkitt_batch(
-    batch_id: str,
-    request: Request,
-    run_id: str | None = Query(default=None),
-) -> FileResponse | StreamingResponse | Response:
-    """Zip the genre-grouped combined files for a completed Inkitt batch."""
-    from api.services.inkitt_batch_service import get_inkitt_batch_service
-
-    service = get_inkitt_batch_service()
+def _batch_archive_parts(get_service, key_prefix: str, batch_id: str, request: Request, run_id: str | None):
+    """Authorize and resolve (state, files, cache_dir, cache_key) for a batch export archive."""
+    service = get_service()
     try:
         service.require_owner(
             batch_id=batch_id,
@@ -278,17 +277,129 @@ def download_inkitt_batch(
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     suffix = f"_{run_id}" if run_id else ""
-    output_dir = Path(state.output_dir).resolve()
-    archive_path = get_or_build_cached_zip(
+    cache_dir = Path(state.output_dir).resolve() / ".archives"
+    return state, files, cache_dir, f"{key_prefix}_{batch_id}{suffix}"
+
+
+def _batch_archive_status(get_service, key_prefix: str, batch_id: str, request: Request, run_id: str | None) -> dict:
+    _state, files, cache_dir, cache_key = _batch_archive_parts(get_service, key_prefix, batch_id, request, run_id)
+    return get_archive_info(files, cache_dir, cache_key)
+
+
+def _batch_archive_start(
+    get_service,
+    key_prefix: str,
+    batch_id: str,
+    request: Request,
+    run_id: str | None,
+    compression_level: int,
+) -> dict:
+    state, files, cache_dir, cache_key = _batch_archive_parts(get_service, key_prefix, batch_id, request, run_id)
+    return start_archive_build(
         files,
-        output_dir / ".archives",
-        f"inkitt_batch_{batch_id}{suffix}",
-        compression_level=INKITT_ARCHIVE_COMPRESSION_LEVEL,
+        cache_dir,
+        cache_key,
+        compression_level=compression_level,
+        extra_manifest=batch_archive_manifest_counts(state, files, run_id),
     )
-    return _range_file_response(
-        archive_path,
-        f"inkitt_batch_{batch_id}{suffix}.zip",
-        request,
+
+
+def _serve_batch_archive(
+    get_service,
+    key_prefix: str,
+    batch_id: str,
+    request: Request,
+    run_id: str | None,
+) -> FileResponse | StreamingResponse | Response:
+    """Serve the prepared export ZIP only. Never builds in-request: a build that
+    outlives the proxy's first-byte window would surface as a Cloudflare 524."""
+    service = get_service()
+    try:
+        service.require_owner(
+            batch_id=batch_id,
+            user_id=getattr(request.state, "create_story_user_id", None),
+            role=getattr(request.state, "create_story_role", None),
+        )
+        cache_dir = service.get_archive_dir(batch_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    suffix = f"_{run_id}" if run_id else ""
+    cache_key = f"{key_prefix}_{batch_id}{suffix}"
+    archive_path = cached_archive_path(cache_dir, cache_key)
+    if archive_path is None:
+        raise HTTPException(
+            status_code=409,
+            detail="The export ZIP has not been prepared yet. Create the ZIP first, then download it.",
+        )
+    return _range_file_response(archive_path, f"{cache_key}.zip", request)
+
+
+def _get_inkitt_service():
+    from api.services.inkitt_batch_service import get_inkitt_batch_service
+
+    return get_inkitt_batch_service()
+
+
+@router.get("/inkitt-batch/{batch_id}/archive")
+def get_inkitt_batch_archive(
+    batch_id: str,
+    request: Request,
+    run_id: str | None = Query(default=None),
+) -> dict:
+    """Report the cached export ZIP for an Inkitt batch: size, counts, staleness, build progress."""
+    return _batch_archive_status(_get_inkitt_service, "inkitt_batch", batch_id, request, run_id)
+
+
+@router.post("/inkitt-batch/{batch_id}/archive")
+def start_inkitt_batch_archive(
+    batch_id: str,
+    request: Request,
+    run_id: str | None = Query(default=None),
+) -> dict:
+    """Build (or refresh) the Inkitt export ZIP in the background."""
+    return _batch_archive_start(
+        _get_inkitt_service, "inkitt_batch", batch_id, request, run_id, INKITT_ARCHIVE_COMPRESSION_LEVEL
+    )
+
+
+@router.get("/inkitt-batch/{batch_id}/download", response_model=None)
+def download_inkitt_batch(
+    batch_id: str,
+    request: Request,
+    run_id: str | None = Query(default=None),
+) -> FileResponse | StreamingResponse | Response:
+    """Serve the prepared export ZIP for a completed Inkitt batch."""
+    return _serve_batch_archive(_get_inkitt_service, "inkitt_batch", batch_id, request, run_id)
+
+
+def _get_novelhall_service():
+    from api.services.novelhall_batch_service import get_novelhall_batch_service
+
+    return get_novelhall_batch_service()
+
+
+@router.get("/novelhall-batch/{batch_id}/archive")
+def get_novelhall_batch_archive(
+    batch_id: str,
+    request: Request,
+    run_id: str | None = Query(default=None),
+) -> dict:
+    """Report the cached export ZIP for a NovelHall batch: size, counts, staleness, build progress."""
+    return _batch_archive_status(_get_novelhall_service, "novelhall_batch", batch_id, request, run_id)
+
+
+@router.post("/novelhall-batch/{batch_id}/archive")
+def start_novelhall_batch_archive(
+    batch_id: str,
+    request: Request,
+    run_id: str | None = Query(default=None),
+) -> dict:
+    """Build (or refresh) the NovelHall export ZIP in the background."""
+    return _batch_archive_start(
+        _get_novelhall_service, "novelhall_batch", batch_id, request, run_id, NOVELHALL_ARCHIVE_COMPRESSION_LEVEL
     )
 
 
@@ -298,36 +409,35 @@ def download_novelhall_batch(
     request: Request,
     run_id: str | None = Query(default=None),
 ) -> FileResponse | StreamingResponse | Response:
-    """Zip the genre-grouped combined files for a completed NovelHall batch."""
-    from api.services.novelhall_batch_service import get_novelhall_batch_service
+    """Serve the prepared export ZIP for a completed NovelHall batch."""
+    return _serve_batch_archive(_get_novelhall_service, "novelhall_batch", batch_id, request, run_id)
 
-    service = get_novelhall_batch_service()
-    try:
-        service.require_owner(
-            batch_id=batch_id,
-            user_id=getattr(request.state, "create_story_user_id", None),
-            role=getattr(request.state, "create_story_role", None),
-        )
-        state, files = service.get_download_files(batch_id, run_id=run_id)
-    except KeyError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except FileNotFoundError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
-    suffix = f"_{run_id}" if run_id else ""
-    output_dir = Path(state.output_dir).resolve()
-    archive_path = get_or_build_cached_zip(
-        files,
-        output_dir / ".archives",
-        f"novelhall_batch_{batch_id}{suffix}",
-        compression_level=NOVELHALL_ARCHIVE_COMPRESSION_LEVEL,
-    )
-    return _range_file_response(
-        archive_path,
-        f"novelhall_batch_{batch_id}{suffix}.zip",
-        request,
+def _get_readnovelmtl_service():
+    from api.services.readnovelmtl_batch_service import get_readnovelmtl_batch_service
+
+    return get_readnovelmtl_batch_service()
+
+
+@router.get("/readnovelmtl-batch/{batch_id}/archive")
+def get_readnovelmtl_batch_archive(
+    batch_id: str,
+    request: Request,
+    run_id: str | None = Query(default=None),
+) -> dict:
+    """Report the cached export ZIP for a ReadNovelMtl batch: size, counts, staleness, build progress."""
+    return _batch_archive_status(_get_readnovelmtl_service, "readnovelmtl_batch", batch_id, request, run_id)
+
+
+@router.post("/readnovelmtl-batch/{batch_id}/archive")
+def start_readnovelmtl_batch_archive(
+    batch_id: str,
+    request: Request,
+    run_id: str | None = Query(default=None),
+) -> dict:
+    """Build (or refresh) the ReadNovelMtl export ZIP in the background."""
+    return _batch_archive_start(
+        _get_readnovelmtl_service, "readnovelmtl_batch", batch_id, request, run_id, READNOVELMTL_ARCHIVE_COMPRESSION_LEVEL
     )
 
 
@@ -337,37 +447,8 @@ def download_readnovelmtl_batch(
     request: Request,
     run_id: str | None = Query(default=None),
 ) -> FileResponse | StreamingResponse | Response:
-    """Zip the source-grouped combined files for a completed ReadNovelMtl batch."""
-    from api.services.readnovelmtl_batch_service import get_readnovelmtl_batch_service
-
-    service = get_readnovelmtl_batch_service()
-    try:
-        service.require_owner(
-            batch_id=batch_id,
-            user_id=getattr(request.state, "create_story_user_id", None),
-            role=getattr(request.state, "create_story_role", None),
-        )
-        state, files = service.get_download_files(batch_id, run_id=run_id)
-    except KeyError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except FileNotFoundError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
-
-    suffix = f"_{run_id}" if run_id else ""
-    output_dir = Path(state.output_dir).resolve()
-    archive_path = get_or_build_cached_zip(
-        files,
-        output_dir / ".archives",
-        f"readnovelmtl_batch_{batch_id}{suffix}",
-        compression_level=READNOVELMTL_ARCHIVE_COMPRESSION_LEVEL,
-    )
-    return _range_file_response(
-        archive_path,
-        f"readnovelmtl_batch_{batch_id}{suffix}.zip",
-        request,
-    )
+    """Serve the prepared export ZIP for a completed ReadNovelMtl batch."""
+    return _serve_batch_archive(_get_readnovelmtl_service, "readnovelmtl_batch", batch_id, request, run_id)
 
 
 @router.get("/jobnib-batch/{batch_id}/download", response_model=None)

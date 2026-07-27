@@ -68,6 +68,31 @@ async def download_goodnovel_batch(batch_id: str) -> StreamingResponse:
     return await _proxy_download(f"/api/results/goodnovel-batch/{batch_id}/download")
 
 
+@router.get("/inkitt-batch/{batch_id}/archive")
+async def get_inkitt_batch_archive(batch_id: str, run_id: str | None = Query(default=None)) -> JSONResponse:
+    """Report the cached Inkitt export ZIP (size, counts, staleness, build progress)."""
+    params = {"run_id": run_id} if run_id else None
+    # Staleness check re-stats every export file; huge batches need more than the default 60s.
+    return await json_proxy(
+        "GET",
+        f"{_nc_url()}/api/results/inkitt-batch/{batch_id}/archive",
+        params=params,
+        timeout=180.0,
+    )
+
+
+@router.post("/inkitt-batch/{batch_id}/archive")
+async def start_inkitt_batch_archive(batch_id: str, run_id: str | None = Query(default=None)) -> JSONResponse:
+    """Start building the Inkitt export ZIP in the background."""
+    params = {"run_id": run_id} if run_id else None
+    return await json_proxy(
+        "POST",
+        f"{_nc_url()}/api/results/inkitt-batch/{batch_id}/archive",
+        params=params,
+        timeout=120.0,
+    )
+
+
 @router.get("/inkitt-batch/{batch_id}/download")
 async def download_inkitt_batch(batch_id: str, run_id: str | None = Query(default=None)) -> StreamingResponse:
     """Zip the genre-grouped combined files for an Inkitt batch."""
@@ -75,11 +100,61 @@ async def download_inkitt_batch(batch_id: str, run_id: str | None = Query(defaul
     return await _proxy_download(f"/api/results/inkitt-batch/{batch_id}/download", params=params)
 
 
+@router.get("/novelhall-batch/{batch_id}/archive")
+async def get_novelhall_batch_archive(batch_id: str, run_id: str | None = Query(default=None)) -> JSONResponse:
+    """Report the cached NovelHall export ZIP (size, counts, staleness, build progress)."""
+    params = {"run_id": run_id} if run_id else None
+    # Staleness check re-stats every export file; huge batches need more than the default 60s.
+    return await json_proxy(
+        "GET",
+        f"{_nc_url()}/api/results/novelhall-batch/{batch_id}/archive",
+        params=params,
+        timeout=180.0,
+    )
+
+
+@router.post("/novelhall-batch/{batch_id}/archive")
+async def start_novelhall_batch_archive(batch_id: str, run_id: str | None = Query(default=None)) -> JSONResponse:
+    """Start building the NovelHall export ZIP in the background."""
+    params = {"run_id": run_id} if run_id else None
+    return await json_proxy(
+        "POST",
+        f"{_nc_url()}/api/results/novelhall-batch/{batch_id}/archive",
+        params=params,
+        timeout=120.0,
+    )
+
+
 @router.get("/novelhall-batch/{batch_id}/download")
 async def download_novelhall_batch(batch_id: str, run_id: str | None = Query(default=None)) -> StreamingResponse:
     """Zip the genre-grouped combined files for a NovelHall batch."""
     params = {"run_id": run_id} if run_id else None
     return await _proxy_download(f"/api/results/novelhall-batch/{batch_id}/download", params=params)
+
+
+@router.get("/readnovelmtl-batch/{batch_id}/archive")
+async def get_readnovelmtl_batch_archive(batch_id: str, run_id: str | None = Query(default=None)) -> JSONResponse:
+    """Report the cached ReadNovelMtl export ZIP (size, counts, staleness, build progress)."""
+    params = {"run_id": run_id} if run_id else None
+    # Staleness check re-stats every export file; huge batches need more than the default 60s.
+    return await json_proxy(
+        "GET",
+        f"{_nc_url()}/api/results/readnovelmtl-batch/{batch_id}/archive",
+        params=params,
+        timeout=180.0,
+    )
+
+
+@router.post("/readnovelmtl-batch/{batch_id}/archive")
+async def start_readnovelmtl_batch_archive(batch_id: str, run_id: str | None = Query(default=None)) -> JSONResponse:
+    """Start building the ReadNovelMtl export ZIP in the background."""
+    params = {"run_id": run_id} if run_id else None
+    return await json_proxy(
+        "POST",
+        f"{_nc_url()}/api/results/readnovelmtl-batch/{batch_id}/archive",
+        params=params,
+        timeout=120.0,
+    )
 
 
 @router.get("/readnovelmtl-batch/{batch_id}/download")

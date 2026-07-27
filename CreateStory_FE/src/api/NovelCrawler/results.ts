@@ -56,6 +56,52 @@ export function getNovelHallBatchDownloadUrl(batchId: string, runId?: string): s
   return `${BASE_URL}/api/results/novelhall-batch/${encodeURIComponent(batchId)}/download${params}`;
 }
 
+export interface BatchArchiveInfo {
+  status: 'none' | 'building' | 'ready';
+  stale: boolean;
+  error?: string;
+  size_bytes?: number | null;
+  file_count?: number | null;
+  story_count?: number | null;
+  chapter_count?: number | null;
+  built_at?: string | null;
+  progress?: { done: number; total: number } | null;
+}
+
+type ArchiveBatchSite = 'inkitt-batch' | 'novelhall-batch' | 'readnovelmtl-batch';
+
+function batchArchiveRequest(site: ArchiveBatchSite, batchId: string, runId: string | undefined, method: 'GET' | 'POST'): Promise<BatchArchiveInfo> {
+  const params = runId ? `?run_id=${encodeURIComponent(runId)}` : '';
+  return apiFetch<BatchArchiveInfo>(
+    `/api/results/${site}/${encodeURIComponent(batchId)}/archive${params}`,
+    { method, timeout: 180000 },
+  );
+}
+
+export async function getNovelHallBatchArchiveInfo(batchId: string, runId?: string): Promise<BatchArchiveInfo> {
+  return batchArchiveRequest('novelhall-batch', batchId, runId, 'GET');
+}
+
+export async function startNovelHallBatchArchive(batchId: string, runId?: string): Promise<BatchArchiveInfo> {
+  return batchArchiveRequest('novelhall-batch', batchId, runId, 'POST');
+}
+
+export async function getInkittBatchArchiveInfo(batchId: string, runId?: string): Promise<BatchArchiveInfo> {
+  return batchArchiveRequest('inkitt-batch', batchId, runId, 'GET');
+}
+
+export async function startInkittBatchArchive(batchId: string, runId?: string): Promise<BatchArchiveInfo> {
+  return batchArchiveRequest('inkitt-batch', batchId, runId, 'POST');
+}
+
+export async function getReadNovelMtlBatchArchiveInfo(batchId: string, runId?: string): Promise<BatchArchiveInfo> {
+  return batchArchiveRequest('readnovelmtl-batch', batchId, runId, 'GET');
+}
+
+export async function startReadNovelMtlBatchArchive(batchId: string, runId?: string): Promise<BatchArchiveInfo> {
+  return batchArchiveRequest('readnovelmtl-batch', batchId, runId, 'POST');
+}
+
 export function getReadNovelMtlBatchDownloadUrl(batchId: string, runId?: string): string {
   const params = runId ? `?run_id=${encodeURIComponent(runId)}` : '';
   return `${BASE_URL}/api/results/readnovelmtl-batch/${encodeURIComponent(batchId)}/download${params}`;

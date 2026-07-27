@@ -34,7 +34,7 @@ from bs4 import BeautifulSoup
 from scrapy.exceptions import CloseSpider
 
 from configs.base_config import load_site_config
-from api.services.archive_cache import get_or_build_cached_zip
+from api.services.archive_cache import batch_archive_manifest_counts, get_or_build_cached_zip
 from api.services.batch_runtime import clamp as shared_clamp
 from spiders.readnovelmtl import ReadNovelMtlSpider
 from utils.cleaner import build_promo_patterns, clean_chapter_content
@@ -625,6 +625,15 @@ class ReadNovelMtlBatchService:
             return
         raise HTTPException(status_code=403, detail="Access denied for this ReadNovelMtl batch.")
 
+    def get_archive_dir(self, batch_id: str) -> Path:
+        """Resolve the batch's archive cache folder without scanning export files."""
+        with self._lock:
+            state = self._get_state_locked(batch_id)
+            output_dir = Path(state.output_dir).resolve() if state.output_dir else (self._batch_root / batch_id).resolve()
+        if not output_dir.is_relative_to(self._batch_root):
+            raise ValueError("Batch output path escapes the batch root.")
+        return output_dir / ".archives"
+
     def get_download_files(self, batch_id: str, run_id: str | None = None) -> tuple[ReadNovelMtlBatchState, list[tuple[Path, str]]]:
         with self._lock:
             state = self._get_state_locked(batch_id)
@@ -687,6 +696,7 @@ class ReadNovelMtlBatchService:
                 Path(state.output_dir).resolve() / ".archives",
                 f"readnovelmtl_batch_{batch_id}{suffix}",
                 compression_level=READNOVELMTL_ARCHIVE_COMPRESSION_LEVEL,
+                extra_manifest=batch_archive_manifest_counts(state, files, run_id),
             )
             self._log_batch(
                 batch_id,

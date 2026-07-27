@@ -1213,12 +1213,24 @@ async def update_content_chapter(body: ContentUpdateChapterRequest) -> ContentUp
     if config is None:
         raise HTTPException(status_code=400, detail="Drive sync not configured.")
 
+    display_title = body.story_id
+    folder_name = body.folder_id
+    try:
+        folders, _ = service.list_drive_folders(limit=10000, offset=0)
+        for folder in folders:
+            if folder.get("id") == body.folder_id or folder.get("name") == body.folder_id:
+                folder_name = folder.get("name") or body.folder_id
+                display_title = folder.get("display_name") or folder_name
+                break
+    except Exception:
+        pass
+
     try:
         job, created = service.create_job_once(
             kind=JobKind.CHAPTER_CONTENT_UPDATE,
             folder_id=body.folder_id,
-            folder_name=body.folder_id,
-            display_name=f"{body.story_id} - Chapter {body.chapter_number} content update",
+            folder_name=folder_name,
+            display_name=f"{display_title} - Chapter {body.chapter_number} content update",
             main_be_api_base_url=config.main_be_api_base_url,
             payload={"story_id": body.story_id, "chapter_number": body.chapter_number},
         )

@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { deleteJob, deleteJobs, listJobs, type JobLogEntry, type SyncJob } from '../../api/BedReadDriveSync';
+import { createJob, deleteJob, deleteJobs, listJobs, updateChapterTitle, updateContentChapter, type JobLogEntry, type SyncJob } from '../../api/BedReadDriveSync';
 import { DatePicker } from '../../components/Shared/DatePicker';
 import { Icon, appIcons } from '../../components/Shared/Icon';
+import { LoadingAppIcon } from '../../components/BedReadDriveSync/DriveSync/SyncTabShared';
+import { showToast } from '../../components/Shared/Toast';
 import type { ThemeMode } from '../../types/theme';
 
 const PRODUCTION_API_BASE = 'https://api-novel.santngo.com';
@@ -96,7 +98,29 @@ function isProductionApi(baseUrl?: string): boolean {
 }
 
 function getDisplayName(job: SyncJob): string {
-  return job.display_name || job.folder_name || job.id;
+  const raw = job.display_name || job.folder_name || job.id;
+  if (!raw) return job.id;
+
+  const uuidRegex = /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\s*-\s*(.*)/i;
+  const match = raw.match(uuidRegex);
+
+  if (match) {
+    const suffix = match[2];
+    let title = '';
+
+    if (job.folder_name) {
+      if (job.folder_name.includes(' - ')) {
+        title = job.folder_name.split(' - ').pop()?.trim() || '';
+      } else if (!job.folder_name.match(/^[0-9a-f-]{36}$/i)) {
+        title = job.folder_name.replace(/^EXTENDED_/i, '').trim();
+      }
+    }
+    if (title) {
+      return `${title} - ${suffix}`;
+    }
+  }
+
+  return raw;
 }
 
 interface JobCardProps {
@@ -112,8 +136,10 @@ interface JobCardProps {
   readonly tertiaryText: string;
   readonly mutedSurface: string;
   readonly selectedSurface: string;
+  readonly retryingJobId?: string | null;
   readonly onToggleExpand: (jobId: string) => void;
   readonly onToggleSelect: (jobId: string) => void;
+  readonly onRetryJob?: (job: SyncJob) => void;
 }
 
 function JobCard({
@@ -129,8 +155,10 @@ function JobCard({
   tertiaryText,
   mutedSurface,
   selectedSurface,
+  retryingJobId,
   onToggleExpand,
   onToggleSelect,
+  onRetryJob,
 }: JobCardProps) {
   const dotFn = STATUS_DOT_MAP[job.status] ?? STATUS_DOT_MAP.cancelled;
   const textFn = STATUS_TEXT_MAP[job.status] ?? STATUS_TEXT_MAP.cancelled;
@@ -249,9 +277,40 @@ function JobCard({
               </p>
             )}
             {job.error && (
-              <p className="mt-2 text-sm" style={{ color: isDark ? '#f87171' : '#dc2626' }}>
+              <p className="mt-2 text-sm font-medium" style={{ color: isDark ? '#f87171' : '#dc2626' }}>
                 {job.error}
               </p>
+            )}
+
+            {(job.status === 'error' || Boolean(job.error)) && !deleteMode && (
+              <div className="mt-3 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onRetryJob?.(job);
+                  }}
+                  disabled={retryingJobId === job.id}
+                  className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-semibold transition-all hover:opacity-90 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+                  style={{
+                    background: isDark ? 'rgba(239, 68, 68, 0.18)' : 'rgba(239, 68, 68, 0.08)',
+                    borderColor: isDark ? 'rgba(239, 68, 68, 0.4)' : 'rgba(239, 68, 68, 0.25)',
+                    color: isDark ? '#f87171' : '#dc2626',
+                  }}
+                >
+                  {retryingJobId === job.id ? (
+                    <>
+                      <LoadingAppIcon isDark={isDark} color="currentColor" size="sm" />
+                      <span>Retrying...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Icon icon={appIcons.refresh} className="h-3.5 w-3.5" />
+                      <span>Retry Job</span>
+                    </>
+                  )}
+                </button>
+              </div>
             )}
           </div>
 
@@ -325,8 +384,52 @@ export function DriveSyncHistoryPage({ themeMode: _themeMode }: DriveSyncHistory
     hasRunning: false,
   });
   const [isDeleting, setIsDeleting] = useState(false);
+  const [retryingJobId, setRetryingJobId] = useState<string | null>(null);
   const [lastRefresh, setLastRefresh] = useState(new Date());
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
+
+  const handleRetryJob = async (job: SyncJob) => {
+    if (retryingJobId) return;
+    setRetryingJobId(job.id);
+    try {
+      const payload = (job.payload || {}) as Record<string, unknown>;
+      const storyId = typeof payload.story_id === 'string' ? payload.story_id : '';
+      const chapterNumber = typeof payload.chapter_number === 'number' ? payload.chapter_number : 0;
+      const folderId = job.folder_id || job.folder_name;
+
+      if (job.kind === 'chapter_content_update' && storyId && chapterNumber && folderId) {
+        const res = await updateContentChapter(storyId, folderId, chapterNumber);
+        if (res.success) {
+          showToast(res.message || `Retried chapter ${chapterNumber} content update.`, 'success', 3000, 'top-center');
+        } else {
+          showToast(res.message || 'Retry failed.', 'error', 3000, 'top-center');
+        }
+      } else if (job.kind === 'title_update' && storyId && chapterNumber && folderId) {
+        const res = await updateChapterTitle(storyId, folderId, chapterNumber);
+        if (res.success) {
+          showToast(res.message || `Retried chapter ${chapterNumber} title update.`, 'success', 3000, 'top-center');
+        } else {
+          showToast(res.message || 'Retry failed.', 'error', 3000, 'top-center');
+        }
+      } else {
+        const res = await createJob({
+          kind: job.kind,
+          folder_id: job.folder_id,
+          folder_name: job.folder_name,
+          display_name: getDisplayName(job),
+          main_be_api_base_url: job.main_be_api_base_url ?? undefined,
+          chapters_count: job.chapters_count ?? undefined,
+          payload: job.payload ?? undefined,
+        });
+        showToast(res.message || 'Job re-queued for retry.', 'success', 3000, 'top-center');
+      }
+      await loadJobs();
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Failed to retry job.', 'error', 3000, 'top-center');
+    } finally {
+      setRetryingJobId(null);
+    }
+  };
 
   const pageBg = 'var(--cs-page)';
   const pageText = 'var(--cs-text)';
@@ -936,8 +1039,10 @@ export function DriveSyncHistoryPage({ themeMode: _themeMode }: DriveSyncHistory
                     tertiaryText={tertiaryText}
                     mutedSurface={mutedSurface}
                     selectedSurface={selectedSurface}
+                    retryingJobId={retryingJobId}
                     onToggleExpand={handleToggleExpand}
                     onToggleSelect={handleToggleSelect}
+                    onRetryJob={handleRetryJob}
                   />
                 ))}
               </div>

@@ -729,6 +729,13 @@ class HistoryJobsMixin:
                     and existing.folder_id == folder_id
                     and existing.status in (JobStatus.QUEUED, JobStatus.RUNNING)
                 ):
+                    if kind in (JobKind.CHAPTER_CONTENT_UPDATE, JobKind.TITLE_UPDATE):
+                        existing_payload = existing.payload or {}
+                        new_payload = payload or {}
+                        existing_ch = existing_payload.get("chapter_number")
+                        new_ch = new_payload.get("chapter_number")
+                        if existing_ch is not None and new_ch is not None and existing_ch != new_ch:
+                            continue
                     selected_job = existing
                     created = False
                     return jobs

@@ -12,8 +12,8 @@ if (Test-Path $tempParent) {
 }
 New-Item -ItemType Directory -Path $tempDir | Out-Null
 
-# Exclude .venv, outputs, and git folders from the package, but keep models folder (excluding heavy model files)
-& robocopy ./ $tempDir /e /xd .venv output Output data Data _export_temp .git /xf .git* kokoro-v1.0.onnx voices-v1.0.bin /nc /nfl /ndl /njh /njs /is
+# Exclude .venv, outputs, git, pycache, and heavy models from the package
+& robocopy ./ $tempDir /e /xd .venv output Output data Data _export_temp .git __pycache__ node_modules /xf .git* *.pyc kokoro-v1.0.onnx voices-v1.0.bin /nc /nfl /ndl /njh /njs /is
 
 Compress-Archive -Path $tempDir -DestinationPath "$destDir/$zipName" -Force
 Remove-Item -Recurse -Force $tempParent

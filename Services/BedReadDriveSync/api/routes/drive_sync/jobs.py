@@ -46,7 +46,7 @@ async def delete_jobs_bulk(body: BulkDeleteRequest) -> JobDeleteResponse:
 async def create_job(body: JobCreateRequest) -> JobCreateResponse:
     """
     Enqueue a new sync job. The job is created in 'queued' status and a
-    a bounded persistent worker will claim it.
+    bounded persistent worker will claim it.
     """
     service = get_drive_sync_service()
     if service.get_config() is None:
@@ -57,10 +57,21 @@ async def create_job(body: JobCreateRequest) -> JobCreateResponse:
 
     from api.models.drive_sync import JobKind
 
-    if body.kind not in {JobKind.UPLOAD_SINGLE, JobKind.UPDATE_SINGLE}:
+    _JOB_KINDS_VALID = {
+        JobKind.UPLOAD_SINGLE,
+        JobKind.UPDATE_SINGLE,
+        JobKind.CHAPTER_CONTENT_UPDATE,
+        JobKind.METADATA_UPDATE,
+        JobKind.COVER_UPDATE,
+        JobKind.BANNER_UPDATE,
+        JobKind.INTRO_UPDATE,
+        JobKind.TITLE_UPDATE,
+        JobKind.WATERMARK_PICTURE_FIX,
+    }
+    if body.kind not in _JOB_KINDS_VALID:
         raise HTTPException(
             status_code=400,
-            detail=f"Job kind '{body.kind}' must be queued through its specific update endpoint.",
+            detail=f"Job kind '{body.kind}' is invalid.",
         )
 
     job, created = service.create_job_once(
@@ -79,7 +90,7 @@ async def create_job(body: JobCreateRequest) -> JobCreateResponse:
         message=(
             f"Job enqueued. Will sync '{body.display_name}' shortly."
             if created
-            else f"{'Update' if body.kind == JobKind.UPDATE_SINGLE else 'Upload'} job already running for '{body.display_name}'."
+            else f"Job already running or queued for '{body.display_name}'."
         ),
     )
 

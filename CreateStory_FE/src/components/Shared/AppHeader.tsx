@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router';
 import type { AuthUser } from '../../api';
 import type { ThemeMode } from '../../types/theme';
 import { getVisibleNavSections, navActive } from '../../utils/navigation';

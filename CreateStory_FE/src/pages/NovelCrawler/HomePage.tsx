@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router';
 import { checkInkittCookies, getSettings, listSites, startCrawl } from '../../api';
 import type { InkittCookieStatusResponse, SiteInfoResponse } from '../../api';
 import { NovelInfoPanel } from '../../components/NovelCrawler/NovelInfoPanel';

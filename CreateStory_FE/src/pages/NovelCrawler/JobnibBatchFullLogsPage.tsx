@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router';
 import { getJobnibBatchLogs, type JobnibBatchLogsResponse } from '../../api';
 import { Icon, appIcons } from '../../components/Shared/Icon';
 import type { ThemeMode } from '../../types/theme';

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useLocation, Link } from 'react-router-dom';
+import { useLocation, Link } from 'react-router';
 import type { AuthUser } from '../../../api';
 import { AppIcon } from '../AppIcon';
 import { Icon, appIcons } from '../Icon';

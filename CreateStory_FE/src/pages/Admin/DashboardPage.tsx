@@ -1,4 +1,4 @@
-import { Link, Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { Link, Navigate, Route, Routes, useLocation } from 'react-router';
 import { AppIcon } from '../../components/Shared/AppIcon';
 import { Icon, appIcons } from '../../components/Shared/Icon';
 import type { AuthUser } from '../../api';

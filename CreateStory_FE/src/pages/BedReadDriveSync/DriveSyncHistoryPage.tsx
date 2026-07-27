@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { deleteJob, deleteJobs, listJobs, retryJob, updateChapterTitle, updateContentChapter, type JobLogEntry, type SyncJob } from '../../api/BedReadDriveSync';
 import { DatePicker } from '../../components/Shared/DatePicker';
 import { Icon, appIcons } from '../../components/Shared/Icon';

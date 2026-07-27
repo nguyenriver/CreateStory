@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
-import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router';
 import faviconLightUrl from './assets/favicon.svg';
 import faviconDarkUrl from './assets/favicon-dark.svg';
 import { Sidebar } from './components/Shared/Sidebar';

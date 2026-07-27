@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import {
   exportReadNovelMtlBatchCatalog,
   getReadNovelMtlBatchArchiveInfo,
@@ -952,7 +952,7 @@ export function ReadNovelMtlBatchPage({ themeMode }: ReadNovelMtlBatchPageProps)
                     <h2 className="text-base font-semibold" style={{ color: text }}>Crawl runs</h2>
                     <span className="rounded-full border px-2 py-0.5 text-xs tabular-nums" style={{ borderColor: panelBorder, background: muted, color: soft }}>{crawlRuns.length}</span>
                   </div>
-                  <p className="text-sm" style={{ color: soft }}>Zip the export on the server first, then download the finished file ? it stays available until you re-zip.</p>
+                  <p className="text-sm" style={{ color: soft }}>Zip the export on the server first, then download the finished file — it stays available until you re-zip.</p>
                 </div>
                 <BatchZipControls
                   theme={{ isDark, panelBorder, muted, text, soft, faint }}

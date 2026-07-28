@@ -161,7 +161,18 @@ export function JobnibBatchPage({ themeMode }: Props) {
   const fetchHistory = useCallback(async () => {
     if (historyBusy.current) return;
     historyBusy.current = true;
-    try { setHistory(await listJobnibBatches()); }
+    try {
+      const batches = await listJobnibBatches();
+      setHistory(batches);
+      setBatchId((current) => {
+        const next = current && batches.some((batch) => batch.batch_id === current)
+          ? current
+          : batches[0]?.batch_id || '';
+        if (next) sessionStorage.setItem('jobnib_batch_id', next);
+        else sessionStorage.removeItem('jobnib_batch_id');
+        return next;
+      });
+    }
     catch (err) { setError(err instanceof Error ? err.message : 'Failed to load Jobnib history.'); }
     finally { historyBusy.current = false; }
   }, []);
@@ -295,24 +306,49 @@ export function JobnibBatchPage({ themeMode }: Props) {
 
   return (
     <div className={`${isDark ? 'dark' : 'light'} min-h-screen`} style={{ background: 'var(--cs-page)', color: text }}>
-      <main className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-3 py-4 sm:px-5 lg:px-6">
-        <section className="rounded-2xl border p-5 sm:p-6" style={{ background: panel, borderColor: border }}>
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-            <div className="max-w-2xl">
+      <main className="flex w-full max-w-none flex-col gap-4 px-3 py-4 sm:px-5 lg:px-6 2xl:px-8">
+        <section className="rounded-xl border p-4 sm:p-5" style={{ background: panel, borderColor: border }}>
+          <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(520px,0.85fr)] xl:items-center">
+            <div className="max-w-3xl">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: faint }}>Novel crawler</span>
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-orange-500/10 px-2.5 py-1 text-xs font-semibold text-orange-600 dark:text-orange-400"><Icon icon={appIcons.userCheck} className="h-3 w-3" />Browser-assisted only</span>
               </div>
               <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">Jobnib batch</h1>
-              <p className="mt-2 text-sm leading-6" style={{ color: soft }}>Discover completed stories, ongoing stories, or both. Then select one story and capture its available chapters through visible Chrome.</p>
+              <p className="mt-2 max-w-2xl text-sm leading-6" style={{ color: soft }}>Build a catalog, choose a story, then capture its available chapters through visible Chrome. Your latest retained batch opens automatically.</p>
               <JobnibCompanionDownloadButton />
             </div>
-            <div className="min-w-[260px] rounded-xl border p-3" style={{ background: muted, borderColor: border }}>
-              <div className="flex items-center justify-between gap-3">
-                <div><div className="text-xs font-semibold" style={{ color: faint }}>Jobnib session</div><div className="mt-0.5 text-sm font-medium">{sessionVerified ? 'Ready' : session?.valid === false ? 'Invalid' : summary?.session.required ? 'Needs attention' : 'Not checked'}</div></div>
-                <button type="button" onClick={() => void checkSession()} disabled={busy === 'session'} className={secondaryButton} style={{ borderColor: border, background: panel }}><Icon icon={busy === 'session' ? appIcons.spinner : appIcons.shield} className={`h-4 w-4 ${busy === 'session' ? 'animate-spin' : ''}`} />Test</button>
+            <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_220px]">
+              <label className="rounded-lg border p-3" style={{ background: muted, borderColor: border }}>
+                <span className="flex items-center justify-between gap-2 text-xs font-semibold" style={{ color: faint }}>
+                  Active batch
+                  {history.length > 0 && <span className="font-normal">{history.length} retained</span>}
+                </span>
+                <select
+                  value={batchId}
+                  onChange={(event) => setBatchId(event.target.value)}
+                  disabled={history.length === 0 || interactionLocked}
+                  className="mt-2 h-10 w-full rounded-md border px-3 text-sm font-semibold outline-none transition focus:border-orange-500 disabled:opacity-60"
+                  style={{ background: panel, borderColor: border, color: text }}
+                >
+                  {history.length === 0 && <option value="">No retained batches</option>}
+                  {history.map((item) => (
+                    <option key={item.batch_id} value={item.batch_id}>
+                      {item.batch_name || `Jobnib ${item.batch_id}`} · {item.phase.replaceAll('_', ' ')}
+                    </option>
+                  ))}
+                </select>
+                <span className="mt-2 block truncate text-xs" style={{ color: faint }}>
+                  {summary ? `${summary.completed_count.toLocaleString()} captured · ${summary.total_stories.toLocaleString()} stories` : 'Create or import a batch to begin.'}
+                </span>
+              </label>
+              <div className="rounded-lg border p-3" style={{ background: muted, borderColor: border }}>
+                <div className="flex items-center justify-between gap-3">
+                  <div><div className="text-xs font-semibold" style={{ color: faint }}>Jobnib session</div><div className="mt-0.5 text-sm font-medium">{sessionVerified ? 'Ready' : session?.valid === false ? 'Invalid' : summary?.session.required ? 'Needs attention' : 'Not checked'}</div></div>
+                  <button type="button" onClick={() => void checkSession()} disabled={busy === 'session'} className={secondaryButton} style={{ borderColor: border, background: panel }}><Icon icon={busy === 'session' ? appIcons.spinner : appIcons.shield} className={`h-4 w-4 ${busy === 'session' ? 'animate-spin' : ''}`} />Test</button>
+                </div>
+                <p className="mt-2 text-xs" style={{ color: faint }}>Manage cookies in Settings → Jobnib Session.</p>
               </div>
-              <p className="mt-2 text-xs" style={{ color: faint }}><Icon icon={appIcons.settings} className="mr-1 h-3 w-3" />Manage cookies in workspace Settings → Jobnib Session.</p>
             </div>
           </div>
           {(session || summary?.session.required) && <div className="mt-4 flex gap-2 rounded-lg border px-3 py-2.5 text-sm" style={{ borderColor: session?.valid ? 'rgba(34,197,94,.4)' : 'rgba(245,158,11,.45)', background: session?.valid ? 'rgba(34,197,94,.08)' : 'rgba(245,158,11,.08)' }}><Icon icon={session?.valid ? appIcons.checkCircle : appIcons.info} className="mt-0.5 h-4 w-4 shrink-0" />{session?.message || summary?.session.last_error || 'Jobnib needs a refreshed browser session.'}</div>}
@@ -320,8 +356,8 @@ export function JobnibBatchPage({ themeMode }: Props) {
 
         {error && <section className="rounded-lg border px-4 py-3 text-sm" style={{ borderColor: 'rgba(239,68,68,.35)', background: 'rgba(239,68,68,.08)', color: isDark ? '#fca5a5' : '#dc2626' }}><Icon icon={appIcons.error} className="mr-2 inline h-4 w-4" />{error}</section>}
 
-        <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
-          <div className="overflow-hidden rounded-2xl border" style={{ background: panel, borderColor: border }}>
+        <section className="grid gap-4 2xl:grid-cols-[minmax(0,1.55fr)_minmax(440px,0.75fr)]">
+          <div className="overflow-hidden rounded-xl border" style={{ background: panel, borderColor: border }}>
             <div className="border-b" style={{ borderColor: border }}>
               <div className="flex gap-3 p-4 sm:p-5">
                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-orange-600 text-sm font-bold text-white">1</span>
@@ -357,16 +393,16 @@ export function JobnibBatchPage({ themeMode }: Props) {
             </div>
           </div>
 
-          <aside className="rounded-2xl border p-4 sm:p-5" style={{ background: panel, borderColor: border }}>
+          <aside className="rounded-xl border p-4 sm:p-5" style={{ background: panel, borderColor: border }}>
             <div className="flex items-start justify-between gap-3"><div className="min-w-0"><div className="text-xs font-semibold" style={{ color: faint }}>Current batch</div><h2 className="mt-1 truncate font-semibold">{summary?.batch_name || 'Nothing selected'}</h2></div><span className="shrink-0 rounded-full border px-2.5 py-1 text-xs font-semibold capitalize" style={{ borderColor: summary?.phase === 'crawling' ? 'rgba(249,115,22,.45)' : border, background: summary?.phase === 'crawling' ? 'rgba(249,115,22,.1)' : muted, color: summary?.phase === 'crawling' ? 'var(--cs-primary)' : soft }}>{phaseLabel(summary?.phase)}</span></div>
             {summary ? <>
-              <div className="mt-4 grid grid-cols-2 gap-2">{statCards.map(([label, value]) => <div key={String(label)} className="rounded-lg border p-3" style={{ background: muted, borderColor: border }}><div className="text-xs" style={{ color: faint }}>{label}</div><div className="mt-1 text-lg font-semibold tabular-nums">{Number(value).toLocaleString()}</div></div>)}</div>
+              <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 2xl:grid-cols-2 min-[1780px]:grid-cols-3">{statCards.map(([label, value]) => <div key={String(label)} className="rounded-lg border p-3" style={{ background: muted, borderColor: border }}><div className="text-xs" style={{ color: faint }}>{label}</div><div className="mt-1 text-lg font-semibold tabular-nums">{Number(value).toLocaleString()}</div></div>)}</div>
               <div className="mt-4 h-2 overflow-hidden rounded-full" style={{ background: muted }}><div className="h-full rounded-full bg-orange-600 transition-all" style={{ width: `${progress}%` }} /></div><div className="mt-2 flex justify-between text-xs" style={{ color: soft }}><span>{summary.crawled_chapters.toLocaleString()} / {summary.total_chapters.toLocaleString()} chapters</span><span>{progress}%</span></div>
             </> : <div className="mt-8 text-center"><Icon icon={appIcons.batch} className="h-8 w-8" style={{ color: faint }} /><p className="mt-3 text-sm" style={{ color: soft }}>Create a batch or select one from history.</p></div>}
           </aside>
         </section>
 
-        {summary && <section className="order-3 grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
+        {summary && <section className="order-3 grid gap-4 2xl:grid-cols-[minmax(0,1.5fr)_minmax(420px,0.5fr)]">
           <div className="rounded-xl border p-4" style={{ background: panel, borderColor: border }}>
             <div className="flex flex-wrap items-center justify-between gap-2"><div><h2 className="font-semibold">Batch log</h2><p className="text-xs" style={{ color: faint }}>Latest {summary.log_lines.length} lines</p></div><Link to={`/jobnib-batch/${encodeURIComponent(summary.batch_id)}/full-logs`} className={secondaryButton} style={{ borderColor: border, background: muted }}>Full logs</Link></div>
             <div className="mt-3 max-h-64 overflow-auto rounded-lg border p-2 font-mono text-xs" style={{ borderColor: border, background: muted }}>{summary.log_lines.length ? summary.log_lines.slice().reverse().map((line, index) => { const parts = splitInkittLogLine(line); return <div key={`${index}-${line}`} className={`mb-1 rounded border-l-2 px-2 py-1 ${inkittLogToneClass(getInkittLogTone(line))}`}><span className="mr-2 opacity-60">{parts.time}</span>{parts.message}</div>; }) : <div className="p-5 text-center" style={{ color: faint }}>No log lines yet.</div>}</div>
@@ -383,7 +419,8 @@ export function JobnibBatchPage({ themeMode }: Props) {
 
         <section className="order-4 rounded-xl border p-4" style={{ background: panel, borderColor: border }}>
           <div className="flex flex-wrap items-center justify-between gap-2"><div><h2 className="font-semibold">Batch history</h2><p className="text-xs" style={{ color: faint }}>{history.length} retained batch(es)</p></div><button type="button" className={secondaryButton} onClick={() => void fetchHistory()} style={{ borderColor: border, background: muted }}><Icon icon={appIcons.refresh} className="h-4 w-4" />Refresh</button></div>
-          <div className="mt-3 space-y-2">{history.map((item) => <div key={item.batch_id} className="flex flex-col gap-2 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between" style={{ borderColor: item.batch_id === batchId ? 'var(--cs-primary)' : border, background: muted }}><button type="button" onClick={() => setBatchId(item.batch_id)} className="min-w-0 text-left"><div className="truncate text-sm font-semibold">{item.batch_name || `Jobnib ${item.batch_id}`}</div><div className="mt-1 text-xs" style={{ color: faint }}>{item.created_at} · {item.completed_count.toLocaleString()} exports · {item.total_stories.toLocaleString()} stories · <span className="capitalize">{item.phase.replaceAll('_', ' ')}</span></div></button><div className="flex flex-wrap gap-2">
+          {history.length === 0 && <div className="mt-3 rounded-lg border border-dashed p-8 text-center text-sm" style={{ borderColor: border, color: soft }}>No retained batches yet. Discover the homepage, import a catalog, or add a story link above.</div>}
+          <div className="mt-3 grid gap-2 lg:grid-cols-2 min-[1800px]:grid-cols-3">{history.map((item) => <div key={item.batch_id} className="flex min-w-0 flex-col gap-3 rounded-lg border p-3" style={{ borderColor: item.batch_id === batchId ? 'var(--cs-primary)' : border, background: item.batch_id === batchId ? 'rgba(249,115,22,.07)' : muted }}><button type="button" onClick={() => setBatchId(item.batch_id)} className="min-w-0 text-left"><div className="flex items-center justify-between gap-2"><div className="truncate text-sm font-semibold">{item.batch_name || `Jobnib ${item.batch_id}`}</div>{item.batch_id === batchId && <span className="shrink-0 rounded-full bg-orange-500/15 px-2 py-0.5 text-[11px] font-semibold text-orange-600 dark:text-orange-400">Active</span>}</div><div className="mt-1 text-xs" style={{ color: faint }}>{item.created_at} · {item.completed_count.toLocaleString()} captured · {item.total_stories.toLocaleString()} stories · <span className="capitalize">{item.phase.replaceAll('_', ' ')}</span></div></button><div className="mt-auto flex flex-wrap gap-2">
             {item.download_ready && <button type="button" className={secondaryButton} disabled={!!busy} onClick={() => void downloadBatch(item.batch_id)} style={{ borderColor: border }}><Icon icon={busy === `download:${item.batch_id}` ? appIcons.spinner : appIcons.download} className={`h-4 w-4 ${busy === `download:${item.batch_id}` ? 'animate-spin' : ''}`} />Progress ZIP</button>}
             <button type="button" className={secondaryButton} onClick={() => { setBusy('export'); void exportJobnibBatchCatalog(item.batch_id).then((data) => downloadJson(data, `jobnib_catalog_${item.batch_id}.json`)).catch((err) => setError(err instanceof Error ? err.message : 'Export failed.')).finally(() => setBusy('')); }} style={{ borderColor: border }}><Icon icon={appIcons.download} className="h-4 w-4" />Catalog</button>
             {!['discovering', 'crawling'].includes(item.phase) && <button type="button" className={secondaryButton} aria-label={`Delete ${item.batch_name || 'Jobnib batch'}`} onClick={() => { if (!window.confirm(`Delete ${item.batch_name}?`)) return; setBusy('delete'); void removeJobnibBatch(item.batch_id).then(() => { if (batchId === item.batch_id) { setBatchId(''); setSummary(null); setRows([]); setRowTotal(0); sessionStorage.removeItem('jobnib_batch_id'); } return fetchHistory(); }).catch((err) => setError(err instanceof Error ? err.message : 'Delete failed.')).finally(() => setBusy('')); }} style={{ borderColor: border }}><Icon icon={appIcons.delete} className="h-4 w-4" /></button>}

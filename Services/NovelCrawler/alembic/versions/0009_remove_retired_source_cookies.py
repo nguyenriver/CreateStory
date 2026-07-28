@@ -7,7 +7,7 @@ Revises: 0008_add_readnovelmtl_cookies
 import sqlalchemy as sa
 from alembic import op
 
-revision = "0009_remove_retired_source_cookies"
+revision = "0009_remove_retired_cookies"
 down_revision = "0008_add_readnovelmtl_cookies"
 branch_labels = None
 depends_on = None

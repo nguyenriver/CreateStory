@@ -31,15 +31,6 @@ import type {
   NovelHallBatchRowsResponse,
   NovelHallBatchStartRequest,
   NovelHallBatchSummary,
-  ReadNovelMtlCookieUpdateResponse,
-  ReadNovelMtlCookieStatusResponse,
-  ReadNovelMtlBatchCrawlRequest,
-  ReadNovelMtlCatalogBackup,
-  ReadNovelMtlCatalogImportResponse,
-  ReadNovelMtlBatchLogsResponse,
-  ReadNovelMtlBatchRowsResponse,
-  ReadNovelMtlBatchStartRequest,
-  ReadNovelMtlBatchSummary,
   JobnibCookieUpdateResponse,
   JobnibCookieStatusResponse,
   JobnibBatchCrawlRequest,
@@ -429,121 +420,6 @@ export async function importNovelHallDiscoveredCatalog(payload: unknown): Promis
 export async function removeNovelHallBatch(batchId: string): Promise<{ deleted: boolean; batch_id: string }> {
   return apiFetch<{ deleted: boolean; batch_id: string }>(
     `/api/crawl/novelhall-batch/${encodeURIComponent(batchId)}`,
-    { method: 'DELETE' },
-  );
-}
-
-// ReadNovelMtl batch endpoints mirror the NovelHall ones exactly (identical response shapes).
-export async function updateReadNovelMtlCookies(
-  cookies: string,
-  userAgent?: string,
-): Promise<ReadNovelMtlCookieUpdateResponse> {
-  return apiFetch<ReadNovelMtlCookieUpdateResponse>('/api/crawl/readnovelmtl-cookies', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ cookies, user_agent: userAgent }),
-  });
-}
-
-export async function checkReadNovelMtlCookies(storyUrl?: string): Promise<ReadNovelMtlCookieStatusResponse> {
-  return apiFetch<ReadNovelMtlCookieStatusResponse>('/api/crawl/readnovelmtl-cookies/status', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ story_url: storyUrl }),
-    timeout: 45000,
-  });
-}
-
-export async function startReadNovelMtlBatch(request: ReadNovelMtlBatchStartRequest): Promise<ReadNovelMtlBatchSummary> {
-  return apiFetch<ReadNovelMtlBatchSummary>('/api/crawl/readnovelmtl-batch/start', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(request),
-    timeout: 60000,
-  });
-}
-
-export async function crawlReadNovelMtlBatch(batchId: string, request: ReadNovelMtlBatchCrawlRequest): Promise<ReadNovelMtlBatchSummary> {
-  return apiFetch<ReadNovelMtlBatchSummary>(`/api/crawl/readnovelmtl-batch/${encodeURIComponent(batchId)}/crawl`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(request),
-    timeout: 60000,
-  });
-}
-
-export async function reorderReadNovelMtlBatchGenres(batchId: string, genres: string[]): Promise<ReadNovelMtlBatchSummary> {
-  return apiFetch<ReadNovelMtlBatchSummary>(`/api/crawl/readnovelmtl-batch/${encodeURIComponent(batchId)}/genre-order`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ genres }),
-    timeout: 60000,
-  });
-}
-
-export async function pauseReadNovelMtlBatch(batchId: string): Promise<ReadNovelMtlBatchSummary> {
-  return apiFetch<ReadNovelMtlBatchSummary>(`/api/crawl/readnovelmtl-batch/${encodeURIComponent(batchId)}/pause`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({}),
-    timeout: 60000,
-  });
-}
-
-export async function retryReadNovelMtlFailedStories(batchId: string, rowIndex?: number): Promise<ReadNovelMtlBatchSummary> {
-  return apiFetch<ReadNovelMtlBatchSummary>(`/api/crawl/readnovelmtl-batch/${encodeURIComponent(batchId)}/retry-failed`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(rowIndex ? { row_index: rowIndex } : {}),
-    timeout: 60000,
-  });
-}
-
-export async function listReadNovelMtlBatches(): Promise<ReadNovelMtlBatchSummary[]> {
-  return apiFetch<ReadNovelMtlBatchSummary[]>('/api/crawl/readnovelmtl-batch');
-}
-
-export async function getReadNovelMtlBatchStatus(batchId: string): Promise<ReadNovelMtlBatchSummary> {
-  return apiFetch<ReadNovelMtlBatchSummary>(`/api/crawl/readnovelmtl-batch/${encodeURIComponent(batchId)}`);
-}
-
-export async function getReadNovelMtlBatchRows(
-  batchId: string,
-  options: { offset?: number; limit?: number; status?: string } = {},
-): Promise<ReadNovelMtlBatchRowsResponse> {
-  const params = new URLSearchParams({
-    offset: String(options.offset ?? 0),
-    limit: String(options.limit ?? 100),
-    status: options.status ?? 'all',
-  });
-  return apiFetch<ReadNovelMtlBatchRowsResponse>(
-    `/api/crawl/readnovelmtl-batch/${encodeURIComponent(batchId)}/rows?${params.toString()}`
-  );
-}
-
-export async function getReadNovelMtlBatchLogs(batchId: string): Promise<ReadNovelMtlBatchLogsResponse> {
-  return apiFetch<ReadNovelMtlBatchLogsResponse>(`/api/crawl/readnovelmtl-batch/${encodeURIComponent(batchId)}/logs`);
-}
-
-export async function exportReadNovelMtlBatchCatalog(batchId: string): Promise<ReadNovelMtlCatalogBackup> {
-  return apiFetch<ReadNovelMtlCatalogBackup>(
-    `/api/crawl/readnovelmtl-batch/${encodeURIComponent(batchId)}/catalog/export`,
-    { timeout: 300000 },
-  );
-}
-
-export async function importReadNovelMtlDiscoveredCatalog(payload: unknown): Promise<ReadNovelMtlCatalogImportResponse> {
-  return apiFetch<ReadNovelMtlCatalogImportResponse>('/api/crawl/readnovelmtl-batch/catalog/import', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-    timeout: 300000,
-  });
-}
-
-export async function removeReadNovelMtlBatch(batchId: string): Promise<{ deleted: boolean; batch_id: string }> {
-  return apiFetch<{ deleted: boolean; batch_id: string }>(
-    `/api/crawl/readnovelmtl-batch/${encodeURIComponent(batchId)}`,
     { method: 'DELETE' },
   );
 }

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { BatchArchiveInfo } from '../../api';
 import { Icon, appIcons } from '../../components/Shared/Icon';
 
-// Shared Zip/Download UI for batch export archives (Inkitt, NovelHall, ReadNovelMtl).
+// Shared Zip/Download UI for batch export archives (Inkitt and NovelHall).
 // The export ZIP is prepared explicitly on the server (Zip button / auto-prepare) and
 // Download only serves the finished file, so huge exports can never hit the proxy's
 // first-byte timeout (Cloudflare 524).
@@ -53,7 +53,7 @@ export function useBatchArchive({ batchId, downloadReady, previousRunIds, getInf
     const key = runId ? `run:${runId}` : 'all';
     getInfo(batchId, runId)
       .then((info) => setArchiveInfo((current) => ({ ...current, [key]: info })))
-      .catch(() => { /* no exported files yet ? keep the card empty */ });
+      .catch(() => { /* no exported files yet — keep the card empty */ });
   }, [batchId, getInfo]);
 
   // Refresh ZIP info when the batch (or its saved runs) change; reset on batch switch.
@@ -117,7 +117,7 @@ export function BatchZipControls({ theme, archive, isZipStarting, downloadReady,
   const { isDark, panelBorder, muted, text, soft } = theme;
   const isZipping = archive?.status === 'building' || isZipStarting;
   const zipLabel = isZipping
-    ? (archive?.progress ? `Zipping ${archive.progress.done.toLocaleString()} / ${archive.progress.total.toLocaleString()}` : 'Zipping?')
+    ? (archive?.progress ? `Zipping ${archive.progress.done.toLocaleString()} / ${archive.progress.total.toLocaleString()}` : 'Zipping…')
     : archive?.status === 'ready'
     ? (archive.stale ? 'Update ZIP' : 'Re-zip')
     : 'Create ZIP';
@@ -131,7 +131,7 @@ export function BatchZipControls({ theme, archive, isZipStarting, downloadReady,
         </button>
         <button type="button" onClick={onDownload} disabled={!hasZip || downloadBusy} title={hasZip ? undefined : 'Create the ZIP first'} className="inline-flex items-center justify-center gap-2 rounded-md border px-3 py-2 text-sm font-medium disabled:opacity-60" style={{ borderColor: panelBorder, background: muted, color: text }}>
           <Icon icon={isDownloading ? appIcons.spinner : appIcons.download} className={`h-4 w-4 ${isDownloading ? 'animate-spin' : ''}`} />
-          {isDownloading ? 'Starting?' : 'Download all'}
+          {isDownloading ? 'Starting…' : 'Download all'}
         </button>
       </div>
       {archive?.error ? (
@@ -140,9 +140,9 @@ export function BatchZipControls({ theme, archive, isZipStarting, downloadReady,
       {hasZip ? (
         <p className="text-xs tabular-nums" style={{ color: soft }}>
           {formatBytes(archive?.size_bytes)}
-          {archive?.story_count ? ` ? ${archive.story_count.toLocaleString()} stories` : ''}
-          {archive?.chapter_count ? ` ? ${archive.chapter_count.toLocaleString()} chapters` : ''}
-          {` ? zipped ${formatZipTime(archive?.built_at)}`}
+          {archive?.story_count ? ` · ${archive.story_count.toLocaleString()} stories` : ''}
+          {archive?.chapter_count ? ` · ${archive.chapter_count.toLocaleString()} chapters` : ''}
+          {` · zipped ${formatZipTime(archive?.built_at)}`}
           {archive?.status === 'ready' && archive.stale ? (
             <span className="ml-1.5 rounded-full border px-1.5 py-0.5 font-semibold" style={{ borderColor: 'rgba(245,158,11,0.4)', color: isDark ? '#fbbf24' : '#b45309' }}>out of date</span>
           ) : null}
@@ -182,8 +182,8 @@ export function RunZipControls({ theme, archive, isZipStarting, canZip, isDownlo
       </div>
       {hasZip ? (
         <p className="text-[11px] tabular-nums" style={{ color: faint }}>
-          {formatBytes(archive?.size_bytes)} ? {formatZipTime(archive?.built_at)}
-          {archive?.status === 'ready' && archive.stale ? ' ? out of date' : ''}
+          {formatBytes(archive?.size_bytes)} · {formatZipTime(archive?.built_at)}
+          {archive?.status === 'ready' && archive.stale ? ' · out of date' : ''}
         </p>
       ) : null}
     </div>

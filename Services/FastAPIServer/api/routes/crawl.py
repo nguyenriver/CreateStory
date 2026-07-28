@@ -88,18 +88,6 @@ async def check_novelhall_cookies(request: dict | None = Body(default=None)) -> 
     return await _forward_request("POST", "/api/crawl/novelhall-cookies/status", json_body=request or {})
 
 
-@router.post("/readnovelmtl-cookies", dependencies=[Depends(require_operator)])
-async def update_readnovelmtl_cookies(request: dict = Body(...)) -> JSONResponse:
-    """Update saved ReadNovelMtl session cookies (cf_clearance + User-Agent) in the NovelCrawler service."""
-    return await _forward_request("POST", "/api/crawl/readnovelmtl-cookies", json_body=request)
-
-
-@router.post("/readnovelmtl-cookies/status", dependencies=[Depends(require_operator)])
-async def check_readnovelmtl_cookies(request: dict | None = Body(default=None)) -> JSONResponse:
-    """Check saved ReadNovelMtl session cookies in the NovelCrawler service."""
-    return await _forward_request("POST", "/api/crawl/readnovelmtl-cookies/status", json_body=request or {})
-
-
 @router.post("/goodnovel-cookies", dependencies=[Depends(require_operator)])
 async def update_goodnovel_cookies(request: dict = Body(...)) -> JSONResponse:
     """Update saved GoodNovel session cookies in the NovelCrawler service."""
@@ -314,93 +302,6 @@ async def get_novelhall_batch_logs(batch_id: str) -> JSONResponse:
 async def delete_novelhall_batch(batch_id: str) -> JSONResponse:
     """Delete a NovelHall batch history entry."""
     return await _forward_request("DELETE", f"/api/crawl/novelhall-batch/{batch_id}")
-
-
-@router.post("/readnovelmtl-batch/start", dependencies=[Depends(require_job_creation_rate)])
-async def start_readnovelmtl_batch(request: dict = Body(...)) -> JSONResponse:
-    """Start a ReadNovelMtl discovery batch."""
-    return await _forward_request("POST", "/api/crawl/readnovelmtl-batch/start", json_body=request)
-
-
-@router.get("/readnovelmtl-batch")
-async def list_readnovelmtl_batches() -> JSONResponse:
-    """Return ReadNovelMtl batch history."""
-    return await _forward_request("GET", "/api/crawl/readnovelmtl-batch")
-
-
-@router.get("/readnovelmtl-batch/catalog/export", dependencies=[Depends(require_operator)])
-async def export_readnovelmtl_discovered_catalog() -> JSONResponse:
-    """Export all discovered ReadNovelMtl story metadata for backup/restore."""
-    return await _forward_request("GET", "/api/crawl/readnovelmtl-batch/catalog/export", timeout=300.0)
-
-
-@router.get("/readnovelmtl-batch/{batch_id}/catalog/export")
-async def export_readnovelmtl_batch_catalog(batch_id: str) -> JSONResponse:
-    """Export discovered ReadNovelMtl story metadata from one selected batch."""
-    return await _forward_request("GET", f"/api/crawl/readnovelmtl-batch/{batch_id}/catalog/export", timeout=300.0)
-
-
-@router.post("/readnovelmtl-batch/catalog/import", dependencies=[Depends(require_operator)])
-async def import_readnovelmtl_discovered_catalog(request: dict = Body(...)) -> JSONResponse:
-    """Import and merge a discovered ReadNovelMtl story catalog backup."""
-    return await _forward_request("POST", "/api/crawl/readnovelmtl-batch/catalog/import", json_body=request, timeout=300.0)
-
-
-@router.get("/readnovelmtl-batch/{batch_id}")
-async def get_readnovelmtl_batch_status(batch_id: str) -> JSONResponse:
-    """Return ReadNovelMtl batch status."""
-    return await _forward_request("GET", f"/api/crawl/readnovelmtl-batch/{batch_id}")
-
-
-@router.post("/readnovelmtl-batch/{batch_id}/crawl", dependencies=[Depends(require_job_creation_rate)])
-async def crawl_readnovelmtl_batch(batch_id: str, request: dict = Body(...)) -> JSONResponse:
-    """Start or resume a ReadNovelMtl batch crawl."""
-    return await _forward_request("POST", f"/api/crawl/readnovelmtl-batch/{batch_id}/crawl", json_body=request)
-
-
-@router.post("/readnovelmtl-batch/{batch_id}/pause", dependencies=[Depends(require_operator)])
-async def pause_readnovelmtl_batch(batch_id: str) -> JSONResponse:
-    """Gracefully pause an active ReadNovelMtl batch crawl."""
-    return await _forward_request("POST", f"/api/crawl/readnovelmtl-batch/{batch_id}/pause", json_body={})
-
-
-@router.post("/readnovelmtl-batch/{batch_id}/genre-order", dependencies=[Depends(require_operator)])
-async def reorder_readnovelmtl_batch_genres(batch_id: str, request: dict = Body(...)) -> JSONResponse:
-    """Reorder a ReadNovelMtl batch's source crawl priority (safe at any time, including mid-crawl)."""
-    return await _forward_request("POST", f"/api/crawl/readnovelmtl-batch/{batch_id}/genre-order", json_body=request)
-
-
-@router.post("/readnovelmtl-batch/{batch_id}/retry-failed", dependencies=[Depends(require_operator)])
-async def retry_failed_readnovelmtl_batch_rows(batch_id: str, request: dict | None = Body(default=None)) -> JSONResponse:
-    """Move failed ReadNovelMtl stories to the front of the next crawl queue."""
-    return await _forward_request("POST", f"/api/crawl/readnovelmtl-batch/{batch_id}/retry-failed", json_body=request or {})
-
-
-@router.get("/readnovelmtl-batch/{batch_id}/rows")
-async def list_readnovelmtl_batch_rows(
-    batch_id: str,
-    offset: int = Query(default=0),
-    limit: int = Query(default=100),
-    status: str = Query(default="all"),
-) -> JSONResponse:
-    """Return a paged slice of ReadNovelMtl batch rows."""
-    return await _forward_request(
-        "GET",
-        f"/api/crawl/readnovelmtl-batch/{batch_id}/rows",
-        params={"offset": offset, "limit": limit, "status": status},
-    )
-
-
-@router.get("/readnovelmtl-batch/{batch_id}/logs")
-async def get_readnovelmtl_batch_logs(batch_id: str) -> JSONResponse:
-    """Return the full retained ReadNovelMtl batch log."""
-    return await _forward_request("GET", f"/api/crawl/readnovelmtl-batch/{batch_id}/logs")
-
-
-@router.delete("/readnovelmtl-batch/{batch_id}", dependencies=[Depends(require_operator)])
-async def delete_readnovelmtl_batch(batch_id: str) -> JSONResponse:
-    """Delete a ReadNovelMtl batch history entry."""
-    return await _forward_request("DELETE", f"/api/crawl/readnovelmtl-batch/{batch_id}")
 
 
 @router.post("/jobnib-batch/start", dependencies=[Depends(require_job_creation_rate)])

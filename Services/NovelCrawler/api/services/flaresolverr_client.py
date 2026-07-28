@@ -22,7 +22,7 @@ import requests
 
 # Each FlareSolverr instance runs a single headless Chrome, so concurrent solves on ONE instance
 # overload it (HTTP 500). We still serialize per-instance with a lock, but run a POOL of instances
-# (FLARESOLVERR_URLS, comma-separated) so different crawlers — e.g. NovelHall + ReadNovelMtl —
+# (FLARESOLVERR_URLS, comma-separated) so different Cloudflare-backed crawlers
 # solve in parallel on separate browsers instead of blocking each other on a single one.
 _ENDPOINT_LOCKS: dict[str, threading.Lock] = {}
 _LOCKS_GUARD = threading.Lock()

@@ -152,7 +152,7 @@ def batch_archive_manifest_counts(state: Any, files: list[tuple[Path, str]], run
     """Story/chapter counts frozen into a batch archive manifest at build time.
 
     Works for every batch service whose rows carry status/crawl_run_id/crawled_chapters
-    (Inkitt, NovelHall, ReadNovelMtl).
+    (Inkitt and NovelHall).
     """
     rows = [
         row

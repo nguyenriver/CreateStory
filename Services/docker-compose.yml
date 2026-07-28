@@ -242,8 +242,8 @@ services:
       NOVEL_CRAWLER_COOKIE_ENCRYPTION_KEY_FILE: /run/secrets/cookie_encryption_key
       CHROME_BIN: /usr/bin/chromium
       FLARESOLVERR_URL: http://flaresolverr:8191/v1
-      # Pool of FlareSolverr instances (comma-separated), one per Cloudflare crawler (NovelHall,
-      # ReadNovelMtl, Scribblehub) so all three solve in parallel on separate browsers instead of
+      # Pool of FlareSolverr instances (comma-separated) so Cloudflare-backed crawlers can solve
+      # in parallel on separate browsers instead of
       # serializing on one. Trim the list (and the matching services) to run fewer.
       FLARESOLVERR_URLS: ${FLARESOLVERR_URLS:-http://flaresolverr:8191/v1,http://flaresolverr2:8191/v1,http://flaresolverr3:8191/v1}
       INKITT_BATCH_MAX_DISCOVER_WORKERS: ${INKITT_BATCH_MAX_DISCOVER_WORKERS:-2}
@@ -277,24 +277,6 @@ services:
       NOVELHALL_RATE_LIMIT_RECOVERY_SUCCESSES: ${NOVELHALL_RATE_LIMIT_RECOVERY_SUCCESSES:-250}
       NOVELHALL_ARCHIVE_PREPARE_DELAY_SECONDS: ${NOVELHALL_ARCHIVE_PREPARE_DELAY_SECONDS:-120}
       NOVELHALL_ARCHIVE_COMPRESSION_LEVEL: ${NOVELHALL_ARCHIVE_COMPRESSION_LEVEL:-1}
-      # ReadNovelMtl discovery batches scrape the Latest listing + 4 ranking pages
-      # through the ReadNovelMtl spider (Cloudflare handled by FlareSolverr); the
-      # pacing/archive knobs mirror NovelHall.
-      READNOVELMTL_BATCH_MAX_DISCOVER_WORKERS: ${READNOVELMTL_BATCH_MAX_DISCOVER_WORKERS:-2}
-      READNOVELMTL_BATCH_MAX_CRAWL_WORKERS: ${READNOVELMTL_BATCH_MAX_CRAWL_WORKERS:-6}
-      READNOVELMTL_DISCOVER_RETRY_TIMES: ${READNOVELMTL_DISCOVER_RETRY_TIMES:-6}
-      READNOVELMTL_DISCOVER_RETRY_BASE_SECONDS: ${READNOVELMTL_DISCOVER_RETRY_BASE_SECONDS:-15}
-      READNOVELMTL_DISCOVER_RETRY_MAX_SECONDS: ${READNOVELMTL_DISCOVER_RETRY_MAX_SECONDS:-120}
-      READNOVELMTL_GLOBAL_MIN_REQUEST_INTERVAL_SECONDS: ${READNOVELMTL_GLOBAL_MIN_REQUEST_INTERVAL_SECONDS:-0.1}
-      READNOVELMTL_MAX_IN_FLIGHT_REQUESTS: ${READNOVELMTL_MAX_IN_FLIGHT_REQUESTS:-8}
-      # Optional cf_clearance warmer, default OFF (chunked runs + cooldown handle the IP throttle).
-      READNOVELMTL_COOKIE_WARM_INTERVAL_SECONDS: ${READNOVELMTL_COOKIE_WARM_INTERVAL_SECONDS:-0}
-      READNOVELMTL_RATE_LIMIT_BASE_COOLDOWN_SECONDS: ${READNOVELMTL_RATE_LIMIT_BASE_COOLDOWN_SECONDS:-60}
-      READNOVELMTL_RATE_LIMIT_MAX_COOLDOWN_SECONDS: ${READNOVELMTL_RATE_LIMIT_MAX_COOLDOWN_SECONDS:-900}
-      READNOVELMTL_RATE_LIMIT_MAX_EVENTS: ${READNOVELMTL_RATE_LIMIT_MAX_EVENTS:-8}
-      READNOVELMTL_RATE_LIMIT_RECOVERY_SUCCESSES: ${READNOVELMTL_RATE_LIMIT_RECOVERY_SUCCESSES:-250}
-      READNOVELMTL_ARCHIVE_PREPARE_DELAY_SECONDS: ${READNOVELMTL_ARCHIVE_PREPARE_DELAY_SECONDS:-120}
-      READNOVELMTL_ARCHIVE_COMPRESSION_LEVEL: ${READNOVELMTL_ARCHIVE_COMPRESSION_LEVEL:-1}
       # Jobnib completed-story batches are checkpointed and intentionally bounded.
       JOBNIB_ALLOW_PARTIAL: "false"
       JOBNIB_MIN_CHAPTER_WORDS: ${JOBNIB_MIN_CHAPTER_WORDS:-100}
@@ -368,8 +350,8 @@ services:
       start_period: 30s
 
   flaresolverr2:
-    # Second/third FlareSolverr instances give each Cloudflare crawler (NovelHall, ReadNovelMtl,
-    # Scribblehub) its own headless browser so they solve in parallel instead of serializing on
+    # Extra FlareSolverr instances give Cloudflare-backed crawlers separate headless browsers
+    # so they solve in parallel instead of serializing on
     # one. Each is a headless Chromium (idle ~160 MiB, up to the 1.5 GiB cap under load). Delete a
     # service + drop its URL from FLARESOLVERR_URLS to run fewer.
     image: ghcr.io/flaresolverr/flaresolverr:v3.5.0@sha256:139dfee1c6f89249c8d665d1333a42e8ec74ec0a86bc6bb1c8461e10d3a66a47

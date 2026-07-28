@@ -44,8 +44,6 @@ def _is_valid_upload_format(folder_name: str) -> Tuple[bool, Optional[str], Opti
             return True, "wn", "WebNovel"
         if token_lower in ("nh", "novelhall"):
             return True, "nh", "NovelHall"
-        if token_lower in ("rn", "readnovelmtl"):
-            return True, "rn", "ReadNovelMtl"
         if token_lower in ("goodnovel", "novelworm"):
             return True, token_lower, token_lower.capitalize()
         # Not recognized

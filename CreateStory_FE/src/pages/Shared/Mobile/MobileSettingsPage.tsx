@@ -11,8 +11,6 @@ import {
     checkScribblehubCookies,
     updateNovelHallCookies,
     checkNovelHallCookies,
-    updateReadNovelMtlCookies,
-    checkReadNovelMtlCookies,
     updateGoodnovelCookies,
     checkGoodnovelCookies,
     updateWebnovelCookies,
@@ -28,7 +26,7 @@ import {
 import { DriveConfig, type ConfigFormData } from '../../../components/Shared/DriveConfig';
 import type { ThemeMode } from '../../../types/theme';
 
-type SettingsCategory = 'profile' | 'appearance' | 'driveSync' | 'inkitt' | 'scribblehub' | 'novelhall' | 'readnovelmtl' | 'goodnovel' | 'webnovel' | 'crawler' | 'audio' | 'danger';
+type SettingsCategory = 'profile' | 'appearance' | 'driveSync' | 'inkitt' | 'scribblehub' | 'novelhall' | 'goodnovel' | 'webnovel' | 'crawler' | 'audio' | 'danger';
 
 interface CategoryItem {
     id: SettingsCategory;
@@ -44,7 +42,6 @@ const CATEGORIES: CategoryItem[] = [
     { id: 'inkitt', label: 'Inkitt Cookies', description: 'Crawler login cookies', icon: 'shield' },
     { id: 'scribblehub', label: 'ScribbleHub Cookies', description: 'Cloudflare bypass cookies', icon: 'shield' },
     { id: 'novelhall', label: 'NovelHall Cookies', description: 'Cloudflare bypass cookies', icon: 'shield' },
-    { id: 'readnovelmtl', label: 'ReadNovelMtl Cookies', description: 'Cloudflare bypass cookies', icon: 'shield' },
     { id: 'goodnovel', label: 'GoodNovel Cookies', description: 'Login cookies to unlock chapters', icon: 'shield' },
     { id: 'webnovel', label: 'WebNovel Cookies', description: 'Cloudflare and login cookies', icon: 'shield' },
     { id: 'crawler', label: 'Crawler', description: 'Default crawl behavior', icon: 'settings' },
@@ -107,13 +104,6 @@ export function MobileSettingsPage({
     const [checkingNovelhallCookies, setCheckingNovelhallCookies] = useState(false);
     const [novelhallCookieError, setNovelhallCookieError] = useState('');
     const [novelhallCookieMessage, setNovelhallCookieMessage] = useState('');
-    // ReadNovelMtl cookies states
-    const [readnovelmtlCookies, setReadnovelmtlCookies] = useState('');
-    const [readnovelmtlUserAgent, setReadnovelmtlUserAgent] = useState('');
-    const [savingReadnovelmtlCookies, setSavingReadnovelmtlCookies] = useState(false);
-    const [checkingReadnovelmtlCookies, setCheckingReadnovelmtlCookies] = useState(false);
-    const [readnovelmtlCookieError, setReadnovelmtlCookieError] = useState('');
-    const [readnovelmtlCookieMessage, setReadnovelmtlCookieMessage] = useState('');
 
     // GoodNovel cookies states
     const [goodnovelCookies, setGoodnovelCookies] = useState('');
@@ -685,101 +675,6 @@ export function MobileSettingsPage({
         }
     };
 
-    const handleSaveReadnovelmtlCookies = async () => {
-        const cookies = readnovelmtlCookies.trim();
-        const userAgent = readnovelmtlUserAgent.trim();
-        if (!cookies) {
-            setReadnovelmtlCookieError('Paste your ReadNovelMtl cookies (at least cf_clearance) before saving.');
-            setReadnovelmtlCookieMessage('');
-            return;
-        }
-        if (!userAgent) {
-            setReadnovelmtlCookieError('Paste your browser User-Agent — cf_clearance only works with the matching User-Agent.');
-            setReadnovelmtlCookieMessage('');
-            return;
-        }
-
-        setSavingReadnovelmtlCookies(true);
-        setReadnovelmtlCookieError('');
-        setReadnovelmtlCookieMessage('');
-        try {
-            const result = await updateReadNovelMtlCookies(cookies, userAgent);
-            if (!result.has_cf_clearance) {
-                setReadnovelmtlCookieError('Saved, but no cf_clearance cookie was found — crawling will still be blocked by Cloudflare.');
-            } else {
-                const message = `Saved ${result.cookie_count} ReadNovelMtl cookie${result.cookie_count === 1 ? '' : 's'}.`;
-                setReadnovelmtlCookieMessage(message);
-                showToast(message, 'success', 2200, 'top-center');
-            }
-        } catch (err) {
-            const message = err instanceof Error ? err.message : 'Failed to update ReadNovelMtl cookies.';
-            setReadnovelmtlCookieError(message);
-            showToast('Failed to update ReadNovelMtl cookies.', 'error', 2500, 'top-center');
-        } finally {
-            setSavingReadnovelmtlCookies(false);
-        }
-    };
-
-    const handleCheckReadnovelmtlCookies = async () => {
-        setCheckingReadnovelmtlCookies(true);
-        setReadnovelmtlCookieError('');
-        setReadnovelmtlCookieMessage('');
-        try {
-            const result = await checkReadNovelMtlCookies();
-            if (result.valid) {
-                setReadnovelmtlCookieMessage(result.message);
-                showToast('ReadNovelMtl cookies are working.', 'success', 2200, 'top-center');
-            } else {
-                setReadnovelmtlCookieError(result.message);
-            }
-        } catch (err) {
-            setReadnovelmtlCookieError(err instanceof Error ? err.message : 'Failed to test ReadNovelMtl cookies.');
-        } finally {
-            setCheckingReadnovelmtlCookies(false);
-        }
-    };
-
-    const handleReadnovelmtlJsonFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-        try {
-            const text = await file.text();
-            let json = JSON.parse(text);
-
-            let extractedUA = '';
-            if (json && !Array.isArray(json) && typeof json === 'object') {
-                extractedUA = json.user_agent || json.userAgent || json['User-Agent'] || '';
-            }
-
-            if (json && !Array.isArray(json) && (json.cookies || json.data)) json = json.cookies || json.data;
-
-            if (Array.isArray(json)) {
-                setReadnovelmtlCookies(JSON.stringify(json));
-                if (!extractedUA) {
-                    const uaEntry = json.find((c) => (c?.name || '').toLowerCase() === 'user-agent');
-                    if (uaEntry?.value) extractedUA = String(uaEntry.value);
-                }
-            } else if (json && typeof json === 'object') {
-                const cf = json.cf_clearance || json.cfClearance || '';
-                if (cf) setReadnovelmtlCookies(`cf_clearance=${cf}`);
-                if (!extractedUA) extractedUA = json.user_agent || json.userAgent || json['User-Agent'] || '';
-                if (!cf) setReadnovelmtlCookies(text.trim());
-            }
-
-            if (extractedUA) {
-                setReadnovelmtlUserAgent(String(extractedUA));
-                showToast('ReadNovelMtl cookies + User-Agent loaded from file.', 'success', 2500, 'top-center');
-            } else {
-                showToast('ReadNovelMtl cookie values loaded from file. User-Agent not found — please enter it manually.', 'info', 3500, 'top-center');
-            }
-            setReadnovelmtlCookieError('');
-        } catch (err) {
-            setReadnovelmtlCookieError(`Invalid JSON: ${err instanceof Error ? err.message : 'Parse error'}`);
-        } finally {
-            e.target.value = '';
-        }
-    };
-
     const handleSaveGoodnovelCookies = async () => {
         const cookies = goodnovelCookies.trim();
         const userAgent = goodnovelUserAgent.trim();
@@ -1244,52 +1139,6 @@ export function MobileSettingsPage({
                         <p className="text-xs" style={{ color: textTertiary }}>Cookies expire every ~30-60 min. Re-paste when crawls fail.</p>
                         {novelhallCookieMessage && <p className="text-sm" style={{ color: success }}>{novelhallCookieMessage}</p>}
                         {novelhallCookieError && <p className="text-sm" style={{ color: danger }}>{novelhallCookieError}</p>}
-                    </div>
-                );
-            case 'readnovelmtl':
-                return (
-                    <div className={`${sectionCard}`} style={{ background: cardBg, borderColor: cardBorder }}>
-                        <div>
-                            <p className={`text-sm font-semibold mb-0.5`} style={{ color: textPrimary }}>ReadNovelMtl Cookies</p>
-                            <p className="text-xs" style={{ color: textSecondary }}>Cloudflare bypass cookies.</p>
-                        </div>
-                        <div>
-                            <label htmlFor="mob-readnovelmtl-cookies" className={labelCls}>Cookies — `cf_clearance=...`, Cookie header, or JSON cookie array</label>
-                            <textarea id="mob-readnovelmtl-cookies" value={readnovelmtlCookies} onChange={(e) => { setReadnovelmtlCookies(e.target.value); setReadnovelmtlCookieError(''); setReadnovelmtlCookieMessage(''); }} rows={3} className={`${inputCls} min-h-[90px] resize-y font-mono text-xs`} style={{ background: inputBg, borderColor: inputBorder }} />
-                        </div>
-                        <div>
-                            <label htmlFor="mob-readnovelmtl-ua" className={labelCls}>Browser User-Agent (run `navigator.userAgent` in DevTools)</label>
-                            <textarea id="mob-readnovelmtl-ua" value={readnovelmtlUserAgent} onChange={(e) => { setReadnovelmtlUserAgent(e.target.value); setReadnovelmtlCookieError(''); setReadnovelmtlCookieMessage(''); }} rows={2} className={`${inputCls} resize-y font-mono text-xs`} style={{ background: inputBg, borderColor: inputBorder }} />
-                        </div>
-                        <div className="flex gap-2">
-                            <button
-                                type="button"
-                                onClick={handleSaveReadnovelmtlCookies}
-                                disabled={savingReadnovelmtlCookies || !readnovelmtlCookies.trim() || !readnovelmtlUserAgent.trim()}
-                                className="flex-1 rounded-xl py-2.5 text-sm font-semibold disabled:cursor-not-allowed"
-                                style={{ background: savingReadnovelmtlCookies || !readnovelmtlCookies.trim() || !readnovelmtlUserAgent.trim() ? (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)') : primary, color: savingReadnovelmtlCookies || !readnovelmtlCookies.trim() || !readnovelmtlUserAgent.trim() ? textTertiary : '#fff' }}
-                            >
-                                {savingReadnovelmtlCookies ? 'Saving...' : 'Save Cookies'}
-                            </button>
-                            <button
-                                type="button"
-                                onClick={handleCheckReadnovelmtlCookies}
-                                disabled={checkingReadnovelmtlCookies}
-                                className="flex-1 rounded-xl border py-2.5 text-sm font-semibold disabled:cursor-not-allowed"
-                                style={{ borderColor: cardBorder, background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)', color: textPrimary }}
-                            >
-                                {checkingReadnovelmtlCookies ? 'Testing...' : 'Test Cookies'}
-                            </button>
-                        </div>
-                        <div className="pt-2">
-                            <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border py-2.5 text-sm font-medium animate-transition" style={{ borderColor: cardBorder, background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)', color: textPrimary }}>
-                                <span>Upload Cookies JSON</span>
-                                <input type="file" accept="application/json" onChange={handleReadnovelmtlJsonFileUpload} className="hidden" />
-                            </label>
-                        </div>
-                        <p className="text-xs" style={{ color: textTertiary }}>Cookies expire every ~30-60 min. Re-paste when crawls fail.</p>
-                        {readnovelmtlCookieMessage && <p className="text-sm" style={{ color: success }}>{readnovelmtlCookieMessage}</p>}
-                        {readnovelmtlCookieError && <p className="text-sm" style={{ color: danger }}>{readnovelmtlCookieError}</p>}
                     </div>
                 );
             case 'goodnovel':

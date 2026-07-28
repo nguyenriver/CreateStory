@@ -26,8 +26,6 @@ const InkittBatchPage = lazy(() => import('./pages/NovelCrawler/InkittBatchPage'
 const InkittBatchFullLogsPage = lazy(() => import('./pages/NovelCrawler/InkittBatchFullLogsPage').then(m => ({ default: m.InkittBatchFullLogsPage })));
 const NovelHallBatchPage = lazy(() => import('./pages/NovelCrawler/NovelHallBatchPage').then(m => ({ default: m.NovelHallBatchPage })));
 const NovelHallBatchFullLogsPage = lazy(() => import('./pages/NovelCrawler/NovelHallBatchFullLogsPage').then(m => ({ default: m.NovelHallBatchFullLogsPage })));
-const ReadNovelMtlBatchPage = lazy(() => import('./pages/NovelCrawler/ReadNovelMtlBatchPage').then(m => ({ default: m.ReadNovelMtlBatchPage })));
-const ReadNovelMtlBatchFullLogsPage = lazy(() => import('./pages/NovelCrawler/ReadNovelMtlBatchFullLogsPage').then(m => ({ default: m.ReadNovelMtlBatchFullLogsPage })));
 const JobnibBatchPage = lazy(() => import('./pages/NovelCrawler/JobnibBatchPage').then(m => ({ default: m.JobnibBatchPage })));
 const JobnibBatchFullLogsPage = lazy(() => import('./pages/NovelCrawler/JobnibBatchFullLogsPage').then(m => ({ default: m.JobnibBatchFullLogsPage })));
 const CrawlPage = lazy(() => import('./pages/NovelCrawler/CrawlPage').then(m => ({ default: m.CrawlPage })));
@@ -270,8 +268,6 @@ function Shell({
               <Route path="/inkitt-batch/:batchId/full-logs" element={<InkittBatchFullLogsPage themeMode={themeMode} />} />
               <Route path="/novelhall-batch" element={<NovelHallBatchPage themeMode={themeMode} />} />
               <Route path="/novelhall-batch/:batchId/full-logs" element={<NovelHallBatchFullLogsPage themeMode={themeMode} />} />
-              <Route path="/readnovelmtl-batch" element={<ReadNovelMtlBatchPage themeMode={themeMode} />} />
-              <Route path="/readnovelmtl-batch/:batchId/full-logs" element={<ReadNovelMtlBatchFullLogsPage themeMode={themeMode} />} />
               <Route path="/jobnib-batch" element={<JobnibBatchPage themeMode={themeMode} />} />
               <Route path="/jobnib-batch/:batchId/full-logs" element={<JobnibBatchFullLogsPage themeMode={themeMode} />} />
               <Route path="/crawl" element={<CrawlPage themeMode={themeMode}  />} />

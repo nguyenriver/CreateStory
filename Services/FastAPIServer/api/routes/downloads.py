@@ -33,7 +33,6 @@ _NOVELCRAWLER_DOWNLOAD = re.compile(
     r"goodnovel-batch/[0-9a-f]{8}/download|"
     r"inkitt-batch/[0-9a-f]{8}/download|"
     r"novelhall-batch/[0-9a-f]{8}/download|"
-    r"readnovelmtl-batch/[0-9a-f]{8}/download|"
     r"jobnib-batch/[0-9a-f]{8}/download|"
     r"[0-9a-f]{8}/(?:download|download-all)))$"
 )

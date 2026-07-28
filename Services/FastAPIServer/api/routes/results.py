@@ -132,38 +132,6 @@ async def download_novelhall_batch(batch_id: str, run_id: str | None = Query(def
     return await _proxy_download(f"/api/results/novelhall-batch/{batch_id}/download", params=params)
 
 
-@router.get("/readnovelmtl-batch/{batch_id}/archive")
-async def get_readnovelmtl_batch_archive(batch_id: str, run_id: str | None = Query(default=None)) -> JSONResponse:
-    """Report the cached ReadNovelMtl export ZIP (size, counts, staleness, build progress)."""
-    params = {"run_id": run_id} if run_id else None
-    # Staleness check re-stats every export file; huge batches need more than the default 60s.
-    return await json_proxy(
-        "GET",
-        f"{_nc_url()}/api/results/readnovelmtl-batch/{batch_id}/archive",
-        params=params,
-        timeout=180.0,
-    )
-
-
-@router.post("/readnovelmtl-batch/{batch_id}/archive")
-async def start_readnovelmtl_batch_archive(batch_id: str, run_id: str | None = Query(default=None)) -> JSONResponse:
-    """Start building the ReadNovelMtl export ZIP in the background."""
-    params = {"run_id": run_id} if run_id else None
-    return await json_proxy(
-        "POST",
-        f"{_nc_url()}/api/results/readnovelmtl-batch/{batch_id}/archive",
-        params=params,
-        timeout=120.0,
-    )
-
-
-@router.get("/readnovelmtl-batch/{batch_id}/download")
-async def download_readnovelmtl_batch(batch_id: str, run_id: str | None = Query(default=None)) -> StreamingResponse:
-    """Zip the source-grouped combined files for a ReadNovelMtl batch."""
-    params = {"run_id": run_id} if run_id else None
-    return await _proxy_download(f"/api/results/readnovelmtl-batch/{batch_id}/download", params=params)
-
-
 @router.get("/jobnib-batch/{batch_id}/download")
 async def download_jobnib_batch(
     batch_id: str,

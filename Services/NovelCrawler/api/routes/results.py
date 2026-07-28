@@ -31,7 +31,6 @@ from utils.sanitize import sanitize_filename
 logger = logging.getLogger(__name__)
 INKITT_ARCHIVE_COMPRESSION_LEVEL = max(0, min(int(os.getenv("INKITT_ARCHIVE_COMPRESSION_LEVEL", "1")), 9))
 NOVELHALL_ARCHIVE_COMPRESSION_LEVEL = max(0, min(int(os.getenv("NOVELHALL_ARCHIVE_COMPRESSION_LEVEL", "1")), 9))
-READNOVELMTL_ARCHIVE_COMPRESSION_LEVEL = max(0, min(int(os.getenv("READNOVELMTL_ARCHIVE_COMPRESSION_LEVEL", "1")), 9))
 
 
 class DeleteRequest(BaseModel):
@@ -411,44 +410,6 @@ def download_novelhall_batch(
 ) -> FileResponse | StreamingResponse | Response:
     """Serve the prepared export ZIP for a completed NovelHall batch."""
     return _serve_batch_archive(_get_novelhall_service, "novelhall_batch", batch_id, request, run_id)
-
-
-def _get_readnovelmtl_service():
-    from api.services.readnovelmtl_batch_service import get_readnovelmtl_batch_service
-
-    return get_readnovelmtl_batch_service()
-
-
-@router.get("/readnovelmtl-batch/{batch_id}/archive")
-def get_readnovelmtl_batch_archive(
-    batch_id: str,
-    request: Request,
-    run_id: str | None = Query(default=None),
-) -> dict:
-    """Report the cached export ZIP for a ReadNovelMtl batch: size, counts, staleness, build progress."""
-    return _batch_archive_status(_get_readnovelmtl_service, "readnovelmtl_batch", batch_id, request, run_id)
-
-
-@router.post("/readnovelmtl-batch/{batch_id}/archive")
-def start_readnovelmtl_batch_archive(
-    batch_id: str,
-    request: Request,
-    run_id: str | None = Query(default=None),
-) -> dict:
-    """Build (or refresh) the ReadNovelMtl export ZIP in the background."""
-    return _batch_archive_start(
-        _get_readnovelmtl_service, "readnovelmtl_batch", batch_id, request, run_id, READNOVELMTL_ARCHIVE_COMPRESSION_LEVEL
-    )
-
-
-@router.get("/readnovelmtl-batch/{batch_id}/download", response_model=None)
-def download_readnovelmtl_batch(
-    batch_id: str,
-    request: Request,
-    run_id: str | None = Query(default=None),
-) -> FileResponse | StreamingResponse | Response:
-    """Serve the prepared export ZIP for a completed ReadNovelMtl batch."""
-    return _serve_batch_archive(_get_readnovelmtl_service, "readnovelmtl_batch", batch_id, request, run_id)
 
 
 @router.get("/jobnib-batch/{batch_id}/download", response_model=None)

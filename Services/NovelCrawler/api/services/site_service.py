@@ -141,34 +141,6 @@ def _fetch_scribblehub_metadata(url: str) -> tuple[Optional[str], Optional[Novel
     return title, novel_meta
 
 
-def _fetch_readnovelmtl_metadata(url: str) -> tuple[Optional[str], Optional[NovelMetadata]]:
-    try:
-        from bs4 import BeautifulSoup
-        from spiders.readnovelmtl import ReadNovelMtlSpider
-
-        spider = ReadNovelMtlSpider(novel=url, limit=1)
-        story_url = spider._story_url_from_any_url(spider._normalize_url(url))
-        html = spider._fetch_page_html(story_url)
-        soup = BeautifulSoup(html, "html.parser")
-        metadata = spider._extract_story_metadata(soup, story_url)
-    except Exception as exc:
-        logger.debug("[readnovelmtl] Metadata fetch failed for %s: %s", url, exc)
-        return None, None
-
-    title = metadata.get("title")
-    author = metadata.get("author")
-    novel_meta = NovelMetadata(
-        title=title,
-        author=author,
-        authors=metadata.get("authors") or ([author] if author else None),
-        cover_url=metadata.get("cover_url"),
-        description=metadata.get("description"),
-        num_parts=metadata.get("num_parts"),
-        tags=metadata.get("tags") or [],
-    )
-    return title, novel_meta
-
-
 def _fetch_novelhall_metadata(url: str) -> tuple[Optional[str], Optional[NovelMetadata]]:
     try:
         from bs4 import BeautifulSoup
@@ -494,12 +466,6 @@ class SiteService:
         elif site_info.config_name == "novelhall":
             story_title = _title_from_slug(re.sub(r"-\d+$", "", slug)) if slug else None
             fetched_title, novel_meta = _fetch_novelhall_metadata(url)
-            if fetched_title:
-                story_title = fetched_title
-
-        elif site_info.config_name == "readnovelmtl":
-            story_title = _title_from_slug(re.sub(r"-[a-z0-9]+$", "", slug)) if slug else None
-            fetched_title, novel_meta = _fetch_readnovelmtl_metadata(url)
             if fetched_title:
                 story_title = fetched_title
 

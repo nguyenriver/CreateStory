@@ -66,7 +66,6 @@ def encrypt_plaintext_cookie_values(db) -> int:
         "webnovel_cookies",
         "jobnib_cookies",
         "novelhall_cookies",
-        "readnovelmtl_cookies",
     ):
         rows = db.execute(
             text(f"SELECT id, value FROM {table_name} WHERE value NOT LIKE :prefix"),
@@ -227,31 +226,6 @@ class NovelHallCookie(Base):
     name: Mapped[str] = mapped_column(String(256), nullable=False)
     value: Mapped[str] = mapped_column(EncryptedCookieValue(), nullable=False, default="")
     domain: Mapped[str] = mapped_column(String(256), nullable=False, default=".novelhall.com")
-    path: Mapped[str] = mapped_column(String(64), nullable=False, default="/")
-    secure: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
-    expires_at: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    user_agent: Mapped[str | None] = mapped_column(Text, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow)
-
-
-class ReadNovelMtlCookie(Base):
-    """Stores user-provided ReadNovelMtl session cookies (chiefly ``cf_clearance``).
-
-    ReadNovelMtl sits behind a Cloudflare managed challenge, so the crawler reuses a cookie
-    set captured from a real browser or auto-minted by FlareSolverr. ``cf_clearance`` is bound
-    to the IP and the User-Agent that solved the challenge, so the matching User-Agent is
-    stored alongside the cookies and replayed on every request.
-
-    Only the most recently saved set of cookies is considered valid at any time.
-    Expired cookies are skipped at read time.
-    """
-
-    __tablename__ = "readnovelmtl_cookies"
-
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    name: Mapped[str] = mapped_column(String(256), nullable=False)
-    value: Mapped[str] = mapped_column(EncryptedCookieValue(), nullable=False, default="")
-    domain: Mapped[str] = mapped_column(String(256), nullable=False, default=".readnovelmtl.com")
     path: Mapped[str] = mapped_column(String(64), nullable=False, default="/")
     secure: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     expires_at: Mapped[int | None] = mapped_column(Integer, nullable=True)

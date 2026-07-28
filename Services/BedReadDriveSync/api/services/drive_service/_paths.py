@@ -15,7 +15,7 @@ import threading
 _RE_STATUS_PREFIX = re.compile(r"^(DONE_|ING_|INCOMPLETE_|EXTENDED_)")
 
 _RE_SOURCE_SUFFIX = re.compile(
-    r"_(?:wp|gd|Goodnovel|nw|ink|jn|jobnib|sh|scribblehub|nl|novellunar|wn|webnovel|nh|novelhall|rn|readnovelmtl)(?![a-zA-Z0-9_])|_-_?novel(?=\s|_|\s-\s|$)", re.IGNORECASE
+    r"_(?:wp|gd|Goodnovel|nw|ink|jn|jobnib|sh|scribblehub|nl|novellunar|wn|webnovel|nh|novelhall)(?![a-zA-Z0-9_])|_-_?novel(?=\s|_|\s-\s|$)", re.IGNORECASE
 )
 
 # -------------------------------------------------------------------------
@@ -40,8 +40,6 @@ _PLATFORM_TO_ENUM: dict[str, str] = {
     "webnovel": "WebNovel",
     "nh": "NovelHall",
     "novelhall": "NovelHall",
-    "rn": "ReadNovelMtl",
-    "readnovelmtl": "ReadNovelMtl",
 }
 
 _CATEGORY_MAP: dict[str, tuple[str, str | None]] = {

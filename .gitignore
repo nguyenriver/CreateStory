@@ -38,6 +38,7 @@ dist/
 frontend-dist/
 Exports/
 __pycache__/
+.pytest_cache/
 *.pyc
 .venv/
 venv/

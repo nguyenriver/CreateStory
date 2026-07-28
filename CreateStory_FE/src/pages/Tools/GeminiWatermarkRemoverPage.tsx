@@ -622,15 +622,15 @@ export function GeminiWatermarkRemoverPage({ themeMode }: GeminiWatermarkRemover
                   role="switch"
                   aria-checked={autoProcess}
                   onClick={handleAutoProcessChange}
-                  className="flex min-h-11 items-center gap-2 rounded-full border border-[var(--cs-border)] px-3 text-xs font-bold text-[var(--cs-text-soft)]"
+                  className="flex min-h-11 shrink-0 items-center gap-2 whitespace-nowrap rounded-full border border-[var(--cs-border)] px-3 text-xs font-bold text-[var(--cs-text-soft)]"
                 >
                   <span
-                    className={`relative h-5 w-9 rounded-full transition-colors ${autoProcess ? 'bg-[var(--cs-primary)]' : 'bg-[var(--cs-border-strong)]'}`}
+                    className={`relative inline-flex h-5 w-9 shrink-0 rounded-full transition-colors ${autoProcess ? 'bg-[var(--cs-primary)]' : 'bg-[var(--cs-border-strong)]'}`}
                     aria-hidden="true"
                   >
-                    <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${autoProcess ? 'translate-x-[18px]' : 'translate-x-0.5'}`} />
+                    <span className={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${autoProcess ? 'translate-x-4' : 'translate-x-0'}`} />
                   </span>
-                  Auto process
+                  <span>Auto process</span>
                 </button>
               </div>
 

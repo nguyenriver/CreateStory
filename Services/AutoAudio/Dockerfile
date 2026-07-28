@@ -21,7 +21,7 @@ RUN adduser --disabled-password --gecos "" appuser && \
     chown -R appuser:appuser /app/output
 
 COPY docker-entrypoint.sh /docker-entrypoint.sh
-RUN chmod +x /docker-entrypoint.sh
+RUN sed -i 's/\r$//' /docker-entrypoint.sh && chmod +x /docker-entrypoint.sh
 
 HEALTHCHECK --interval=30s --timeout=10s --retries=3 CMD python -c "import httpx; httpx.get('http://localhost:8004/').raise_for_status()"
 
